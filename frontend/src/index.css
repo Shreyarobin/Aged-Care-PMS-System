@@ -1,0 +1,40 @@
+:root {
+  --color-bg: #faf8f4;
+  --color-surface: #ffffff;
+  --color-text: #2c2c2a;
+  --color-text-muted: #6b6a64;
+  --color-teal: #0f6e56;
+  --color-teal-light: #e1f5ee;
+  --color-sage: #e1f5ee;
+  --color-sage-text: #0f6e56;
+  --color-coral: #d85a30;
+  --color-coral-light: #faece7;
+  --color-coral-text: #993c1d;
+  --color-border: #e8e4dc;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+input {
+  font-family: inherit;
+}
