@@ -14,6 +14,11 @@ import FamilyResidentView from "./pages/FamilyResidentView";
 import AddResidentForm from "./pages/AddResidentForm";
 import EditResidentForm from "./pages/EditResidentForm";
 import InterRAITab from "./pages/InterRAITab";
+import MessagesPage from "./pages/MessagesPage";
+import IncidentsTab from "./pages/IncidentsTab";
+import ManagerDashboard from "./pages/ManagerDashboard";
+import StaffRoster from "./pages/StaffRoster";
+import ComplianceOverview from "./pages/ComplianceOverview";
 
 function App() {
   return (
@@ -30,9 +35,14 @@ function App() {
       <Route path="/*" element={<ProtectedRoute allowedRoles={["nurse", "clinician", "manager"]} />}>
         <Route element={<StaffLayout />}>
           <Route path="" element={<ResidentOverview />} />
+          <Route path="messages" element={<MessagesPage />} />
+          <Route path="manager" element={<ManagerDashboard />} />
+          <Route path="roster" element={<StaffRoster />} />
+          <Route path="compliance" element={<ComplianceOverview />} />
           <Route path="residents/new" element={<AddResidentForm />} />
           <Route path="residents/:id" element={<ResidentLayout />}>
           <Route path="interrai" element={<InterRAITab />} />
+          <Route path="incidents" element={<IncidentsTab />} />
           <Route path="edit" element={<EditResidentForm />} />
             <Route index element={<ResidentSummary />} />
             <Route path="care-plan" element={<CarePlanTab />} />

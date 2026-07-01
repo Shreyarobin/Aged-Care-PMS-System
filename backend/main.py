@@ -15,6 +15,8 @@ from progress_note_models import ProgressNote, NoteCategory
 from emar_models import MedicationOrder, MedicationAdministration, AdministrationOutcome
 from vitals_models import VitalsReading
 from message_models import Message
+from incident_models import Incident, IncidentType, IncidentSeverity
+from staffshift_models import StaffShift, ShiftType
 from auth import hash_password, verify_password, create_access_token, get_current_user, require_roles
 
 app = FastAPI()
@@ -105,6 +107,19 @@ class VitalsReadingCreate(BaseModel):
 class MessageCreate(BaseModel):
     content: str
 
+
+class IncidentCreate(BaseModel):
+    incident_type: IncidentType
+    severity: IncidentSeverity
+    description: str
+    action_taken: str
+    incident_date: date
+
+class StaffShiftCreate(BaseModel):
+    staff_id: int
+    shift_date: date
+    shift_type: ShiftType
+    ward: str
 
 def get_db():
     db = SessionLocal()
@@ -554,3 +569,215 @@ def list_messages(
         }
         for m in messages
     ]
+
+
+@app.post("/residents/{resident_id}/incidents")
+def create_incident(
+    resident_id: int,
+    incident: IncidentCreate,
+    db: Session = Depends(get_db),
+    current_user_data: dict = Depends(require_roles("nurse", "clinician", "manager")),
+):
+    resident = db.query(Resident).filter(Resident.id == resident_id).first()
+    if not resident:
+        raise HTTPException(status_code=404, detail="Resident not found")
+
+    current_user = db.query(User).filter(User.email == current_user_data["email"]).first()
+
+    new_incident = Incident(
+        resident_id=resident_id,
+        reported_by_id=current_user.id,
+        incident_type=incident.incident_type,
+        severity=incident.severity,
+        description=incident.description,
+        action_taken=incident.action_taken,
+        incident_date=incident.incident_date,
+        created_at=datetime.utcnow(),
+    )
+    db.add(new_incident)
+    db.commit()
+    db.refresh(new_incident)
+    return new_incident
+
+
+@app.get("/residents/{resident_id}/incidents")
+def list_incidents(
+    resident_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_roles("nurse", "clinician", "manager")),
+):
+    resident = db.query(Resident).filter(Resident.id == resident_id).first()
+    if not resident:
+        raise HTTPException(status_code=404, detail="Resident not found")
+
+    return db.query(Incident).filter(
+        Incident.resident_id == resident_id
+    ).order_by(Incident.incident_date.desc()).all()
+
+@app.get("/manager/occupancy")
+def get_occupancy(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_roles("manager")),
+):
+    total = db.query(Resident).count()
+    active = db.query(Resident).filter(Resident.discharge_date == None).count()
+    discharged = total - active
+
+    return {
+        "total_beds": total,
+        "occupied": active,
+        "discharged": discharged,
+        "occupancy_rate": round((active / total * 100), 1) if total > 0 else 0,
+    }
+
+@app.get("/manager/kpi")
+def get_kpi(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_roles("manager")),
+):
+    from sqlalchemy import func
+    from datetime import timedelta
+
+    today = date.today()
+    thirty_days_ago = today - timedelta(days=30)
+
+    admissions = db.query(Resident).filter(
+        Resident.admission_date >= thirty_days_ago
+    ).count()
+
+    discharges = db.query(Resident).filter(
+        Resident.discharge_date >= thirty_days_ago
+    ).count()
+
+    incidents = db.query(Incident).filter(
+        Incident.incident_date >= thirty_days_ago
+    ).count()
+
+    high_severity = db.query(Incident).filter(
+        Incident.incident_date >= thirty_days_ago,
+        Incident.severity == "high"
+    ).count()
+
+    return {
+        "period": "last_30_days",
+        "admissions": admissions,
+        "discharges": discharges,
+        "incidents": incidents,
+        "high_severity_incidents": high_severity,
+    }
+
+@app.post("/staff-shifts")
+def create_staff_shift(
+    shift: StaffShiftCreate,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_roles("manager")),
+):
+    new_shift = StaffShift(
+        staff_id=shift.staff_id,
+        shift_date=shift.shift_date,
+        shift_type=shift.shift_type,
+        ward=shift.ward,
+    )
+    db.add(new_shift)
+    db.commit()
+    db.refresh(new_shift)
+    return new_shift
+
+
+@app.get("/staff-shifts")
+def list_staff_shifts(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_roles("manager")),
+):
+    shifts = db.query(StaffShift).order_by(
+        StaffShift.shift_date.desc()
+    ).all()
+
+    return [
+        {
+            "id": s.id,
+            "shift_date": s.shift_date,
+            "shift_type": s.shift_type,
+            "ward": s.ward,
+            "staff_name": s.staff.full_name,
+            "staff_id": s.staff_id,
+        }
+        for s in shifts
+    ]
+
+
+@app.get("/staff-users")
+def list_staff_users(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_roles("manager")),
+):
+    users = db.query(User).filter(
+        User.role.in_(["nurse", "clinician", "manager"])
+    ).all()
+    return [{"id": u.id, "full_name": u.full_name, "role": u.role} for u in users]
+
+@app.get("/manager/compliance")
+def get_compliance(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_roles("manager")),
+):
+    from datetime import timedelta
+
+    today = date.today()
+    ninety_days_ago = today - timedelta(days=90)
+    thirty_days_ago = today - timedelta(days=30)
+
+    active_residents = db.query(Resident).filter(
+        Resident.discharge_date == None
+    ).all()
+
+    resident_compliance = []
+    for r in active_residents:
+        active_plan = db.query(CarePlan).filter(
+            CarePlan.resident_id == r.id,
+            CarePlan.is_active == True
+        ).first()
+
+        recent_interrai = db.query(InterRAIAssessment).filter(
+            InterRAIAssessment.resident_id == r.id,
+            InterRAIAssessment.assessment_date >= ninety_days_ago
+        ).first()
+
+        recent_note = db.query(ProgressNote).filter(
+            ProgressNote.resident_id == r.id,
+            ProgressNote.written_at >= datetime.combine(
+                thirty_days_ago, datetime.min.time()
+            )
+        ).first()
+
+        active_meds = db.query(MedicationOrder).filter(
+            MedicationOrder.resident_id == r.id,
+            MedicationOrder.is_active == True
+        ).count()
+
+        resident_compliance.append({
+            "resident_id": r.id,
+            "resident_name": r.full_name,
+            "has_active_care_plan": active_plan is not None,
+            "has_recent_interrai": recent_interrai is not None,
+            "has_recent_notes": recent_note is not None,
+            "active_medication_orders": active_meds,
+        })
+
+    incidents_30d = db.query(Incident).filter(
+        Incident.incident_date >= thirty_days_ago
+    ).count()
+
+    high_severity_30d = db.query(Incident).filter(
+        Incident.incident_date >= thirty_days_ago,
+        Incident.severity == "high"
+    ).count()
+
+    return {
+        "generated_on": today.isoformat(),
+        "residents": resident_compliance,
+        "facility": {
+            "incidents_last_30_days": incidents_30d,
+            "high_severity_last_30_days": high_severity_30d,
+        },
+    }

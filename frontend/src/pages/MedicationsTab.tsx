@@ -11,7 +11,27 @@ type MedicationOrder = {
   start_date: string;
 };
 
+type AdministrationOutcome = "given" | "refused" | "missed";
+
+type LogForm = {
+  scheduled_time: string;
+  outcome: AdministrationOutcome;
+  notes: string;
+};
+
 type ResidentContext = { resident: { id: number } };
+
+function getNowLocal(): string {
+  const now = new Date();
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+}
+
+const defaultLogForm = (): LogForm => ({
+  scheduled_time: getNowLocal(),
+  outcome: "given",
+  notes: "",
+});
 
 export default function MedicationsTab() {
   const { resident } = useOutletContext<ResidentContext>();
@@ -21,6 +41,13 @@ export default function MedicationsTab() {
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  // Log administration
+  const [logOrderId, setLogOrderId] = useState<number | null>(null);
+  const [logForm, setLogForm] = useState<LogForm>(defaultLogForm());
+  const [logSaving, setLogSaving] = useState(false);
+  const [logError, setLogError] = useState("");
+  const [logSuccessId, setLogSuccessId] = useState<number | null>(null);
 
   const [form, setForm] = useState({
     medication_name: "",
@@ -82,6 +109,52 @@ export default function MedicationsTab() {
       setSaving(false);
     }
   }
+
+  // ── Step 3.4: Log administration handlers ──────────────────────────────────
+
+  function openLogForm(orderId: number) {
+    setLogOrderId(orderId);
+    setLogForm(defaultLogForm());
+    setLogError("");
+    setLogSuccessId(null);
+  }
+
+  function closeLogForm() {
+    setLogOrderId(null);
+    setLogError("");
+  }
+
+  async function handleLogSubmit(orderId: number) {
+    setLogSaving(true);
+    setLogError("");
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:8000/medication-orders/${orderId}/administrations`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            scheduled_time: logForm.scheduled_time + ":00",
+            outcome: logForm.outcome,
+            notes: logForm.notes || null,
+          }),
+        }
+      );
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.detail || "Failed to log administration");
+      }
+      setLogOrderId(null);
+      setLogSuccessId(orderId);
+      setTimeout(() => setLogSuccessId(null), 3000);
+    } catch (err) {
+      setLogError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setLogSaving(false);
+    }
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
 
   const inputStyle = {
     display: "block", width: "100%", padding: "10px 12px",
@@ -155,21 +228,155 @@ export default function MedicationsTab() {
         </div>
       )}
 
+      {/* ── Step 3.5 + 3.6: Orders list with Log dose button + inline form ── */}
       {orders.length > 0 && (
-        <div style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "12px", padding: "20px" }}>
-          {orders.map((order) => (
-            <div key={order.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: "1px solid var(--color-border)" }}>
-              <div>
-                <p style={{ fontSize: "14px", fontWeight: 500 }}>{order.medication_name} · {order.dosage}</p>
-                <p style={{ fontSize: "12px", color: "var(--color-text-muted)", marginTop: "2px" }}>{order.scheduled_times} · from {order.start_date}</p>
-              </div>
-              <span style={{
-                fontSize: "11px", padding: "2px 8px", borderRadius: "999px",
-                backgroundColor: order.is_active ? "var(--color-sage)" : "var(--color-border)",
-                color: order.is_active ? "var(--color-sage-text)" : "var(--color-text-muted)",
+        <div style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "12px", overflow: "hidden" }}>
+          {orders.map((order, idx) => (
+            <div key={order.id}>
+
+              {/* Order row */}
+              <div style={{
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+                padding: "14px 20px",
+                borderBottom: logOrderId === order.id
+                  ? "none"
+                  : idx < orders.length - 1 ? "1px solid var(--color-border)" : "none",
               }}>
-                {order.is_active ? "Active" : "Discontinued"}
-              </span>
+                <div>
+                  <p style={{ fontSize: "14px", fontWeight: 500 }}>{order.medication_name} · {order.dosage}</p>
+                  <p style={{ fontSize: "12px", color: "var(--color-text-muted)", marginTop: "2px" }}>{order.scheduled_times} · from {order.start_date}</p>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  {/* 3-second success flash after logging */}
+                  {logSuccessId === order.id && (
+                    <span style={{ fontSize: "12px", color: "var(--color-sage-text)", backgroundColor: "var(--color-sage)", padding: "3px 10px", borderRadius: "999px" }}>
+                      ✓ Logged
+                    </span>
+                  )}
+
+                  {/* Log dose button — only on active orders, hidden while form is open */}
+                  {order.is_active && logOrderId !== order.id && logSuccessId !== order.id && (
+                    <button
+                      onClick={() => openLogForm(order.id)}
+                      style={{
+                        padding: "5px 12px", backgroundColor: "transparent",
+                        border: "1px solid var(--color-teal)", color: "var(--color-teal)",
+                        borderRadius: "6px", fontSize: "12px", fontWeight: 500, cursor: "pointer",
+                      }}
+                    >
+                      Log dose
+                    </button>
+                  )}
+
+                  {/* Cancel replaces Log dose while the form is open */}
+                  {order.is_active && logOrderId === order.id && (
+                    <button
+                      onClick={closeLogForm}
+                      style={{
+                        padding: "5px 12px", backgroundColor: "transparent",
+                        border: "1px solid var(--color-border)", color: "var(--color-text-muted)",
+                        borderRadius: "6px", fontSize: "12px", cursor: "pointer",
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  )}
+
+                  <span style={{
+                    fontSize: "11px", padding: "2px 8px", borderRadius: "999px",
+                    backgroundColor: order.is_active ? "var(--color-sage)" : "var(--color-border)",
+                    color: order.is_active ? "var(--color-sage-text)" : "var(--color-text-muted)",
+                  }}>
+                    {order.is_active ? "Active" : "Discontinued"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Inline log form — expands below the row when Log dose is clicked */}
+              {logOrderId === order.id && (
+                <div style={{
+                  padding: "16px 20px 20px",
+                  backgroundColor: "var(--color-bg)",
+                  borderTop: "1px solid var(--color-border)",
+                  borderBottom: idx < orders.length - 1 ? "1px solid var(--color-border)" : "none",
+                }}>
+                  <p style={{ fontSize: "13px", fontWeight: 500, marginBottom: "14px" }}>
+                    Log dose — {order.medication_name} {order.dosage}
+                  </p>
+
+                  <label style={{ ...labelStyle, display: "block", marginBottom: "4px" }}>Scheduled time *</label>
+                  <input
+                    type="datetime-local"
+                    value={logForm.scheduled_time}
+                    onChange={(e) => setLogForm({ ...logForm, scheduled_time: e.target.value })}
+                    style={{
+                      padding: "10px 12px", marginBottom: "16px",
+                      border: "1px solid var(--color-border)", borderRadius: "8px",
+                      fontSize: "14px", background: "var(--color-surface)",
+                    }}
+                  />
+
+                  <label style={{ ...labelStyle, display: "block", marginBottom: "8px" }}>Outcome *</label>
+                  <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
+                    {(["given", "refused", "missed"] as AdministrationOutcome[]).map((opt) => {
+                      const selected = logForm.outcome === opt;
+                      const config = {
+                        given:   { sel: "var(--color-teal)",        idle: "var(--color-teal-light)",  idleText: "var(--color-sage-text)" },
+                        refused: { sel: "#92400e",                   idle: "#fef3c7",                  idleText: "#92400e" },
+                        missed:  { sel: "var(--color-coral)",        idle: "var(--color-coral-light)", idleText: "var(--color-coral-text)" },
+                      }[opt];
+                      return (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() => setLogForm({ ...logForm, outcome: opt })}
+                          style={{
+                            padding: "7px 18px", borderRadius: "8px", fontSize: "13px",
+                            fontWeight: 500, border: "none", cursor: "pointer",
+                            backgroundColor: selected ? config.sel : config.idle,
+                            color: selected ? "#fff" : config.idleText,
+                          }}
+                        >
+                          {opt.charAt(0).toUpperCase() + opt.slice(1)}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <label style={{ ...labelStyle, display: "block", marginBottom: "4px" }}>Notes (optional)</label>
+                  <textarea
+                    value={logForm.notes}
+                    onChange={(e) => setLogForm({ ...logForm, notes: e.target.value })}
+                    placeholder="Any relevant observations..."
+                    rows={2}
+                    style={{
+                      display: "block", width: "100%", padding: "10px 12px",
+                      border: "1px solid var(--color-border)", borderRadius: "8px",
+                      fontSize: "14px", resize: "vertical", fontFamily: "inherit",
+                      background: "var(--color-surface)", marginBottom: "14px",
+                    }}
+                  />
+
+                  {logError && (
+                    <p style={{ color: "var(--color-coral-text)", fontSize: "13px", marginBottom: "12px" }}>{logError}</p>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => handleLogSubmit(order.id)}
+                    disabled={logSaving || !logForm.scheduled_time}
+                    style={{
+                      padding: "8px 20px", backgroundColor: "var(--color-teal)", color: "white",
+                      border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: 500,
+                      cursor: logSaving ? "default" : "pointer", opacity: logSaving ? 0.7 : 1,
+                    }}
+                  >
+                    {logSaving ? "Saving..." : "Save log"}
+                  </button>
+                </div>
+              )}
+
             </div>
           ))}
         </div>

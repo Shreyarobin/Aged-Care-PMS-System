@@ -22,7 +22,7 @@ type FamilyMessage = {
   sender_role: string;
 };
 
-const RESIDENT_ID = 1;
+const RESIDENT_ID = 2;
 
 export default function FamilyResidentView() {
   const { token } = useAuth();

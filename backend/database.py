@@ -18,6 +18,8 @@ import progress_note_models
 import emar_models
 import vitals_models
 import message_models
+import incident_models
+import staffshift_models
 
 def create_tables():
     Base.metadata.create_all(bind=engine)

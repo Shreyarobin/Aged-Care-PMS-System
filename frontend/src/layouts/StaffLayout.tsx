@@ -2,7 +2,7 @@ import { Link, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 export default function StaffLayout() {
-  const { logout } = useAuth();
+  const { logout, role } = useAuth();
   const navigate = useNavigate();
 
   function handleLogout() {
@@ -25,7 +25,22 @@ export default function StaffLayout() {
         <p style={{ fontSize: "13px", fontWeight: 500, color: "var(--color-text-muted)", padding: "0 16px", marginBottom: "16px" }}>
           PMS Platform
         </p>
+
+        {/* All roles */}
         <Link to="/" style={linkStyle}>Resident overview</Link>
+        <Link to="/messages" style={linkStyle}>Messages</Link>
+
+        {/* Manager only */}
+        {role === "manager" && (
+          <>
+            <p style={{ fontSize: "11px", fontWeight: 500, color: "var(--color-text-muted)", padding: "16px 16px 4px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Management
+            </p>
+            <Link to="/manager" style={linkStyle}>Manager dashboard</Link>
+            <Link to="/roster" style={linkStyle}>Staff roster</Link>
+            <Link to="/compliance" style={linkStyle}>Compliance</Link>
+          </>
+        )}
 
         <div style={{ marginTop: "auto" }}>
           <button
