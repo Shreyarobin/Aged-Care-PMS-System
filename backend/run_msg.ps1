@@ -1,0 +1,1 @@
+﻿curl.exe -X POST -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJudXJzZS50ZXN0QGV4YW1wbGUuY29tIiwicm9sZSI6Im51cnNlIiwiZXhwIjoxNzgyODI5OTAxfQ.wULUcJEBMes_LR5jRGtRnIPMd1uA0TfU8PWxlsBBJCc" -H "Content-Type: application/json" -d "@msg1.json" http://127.0.0.1:8000/residents/1/messages

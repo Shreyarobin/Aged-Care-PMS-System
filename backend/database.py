@@ -17,6 +17,7 @@ import interrai_models
 import progress_note_models
 import emar_models
 import vitals_models
+import message_models
 
 def create_tables():
     Base.metadata.create_all(bind=engine)

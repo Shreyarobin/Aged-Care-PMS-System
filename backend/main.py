@@ -14,6 +14,7 @@ from interrai_models import InterRAIAssessment
 from progress_note_models import ProgressNote, NoteCategory
 from emar_models import MedicationOrder, MedicationAdministration, AdministrationOutcome
 from vitals_models import VitalsReading
+from message_models import Message
 from auth import hash_password, verify_password, create_access_token, get_current_user, require_roles
 
 app = FastAPI()
@@ -99,6 +100,10 @@ class VitalsReadingCreate(BaseModel):
     blood_pressure_diastolic: float
     spo2: float
     temperature: float
+
+
+class MessageCreate(BaseModel):
+    content: str
 
 
 def get_db():
@@ -496,3 +501,56 @@ def list_vitals_readings(
     return db.query(VitalsReading).filter(
         VitalsReading.resident_id == resident_id
     ).order_by(VitalsReading.recorded_at.desc()).limit(50).all()
+
+
+@app.post("/residents/{resident_id}/messages")
+def create_message(
+    resident_id: int,
+    message: MessageCreate,
+    db: Session = Depends(get_db),
+    current_user_data: dict = Depends(get_current_user),
+):
+    resident = db.query(Resident).filter(Resident.id == resident_id).first()
+    if not resident:
+        raise HTTPException(status_code=404, detail="Resident not found")
+
+    current_user = db.query(User).filter(User.email == current_user_data["email"]).first()
+
+    new_message = Message(
+        resident_id=resident_id,
+        sender_id=current_user.id,
+        content=message.content,
+        sent_at=datetime.utcnow(),
+        read=False,
+    )
+    db.add(new_message)
+    db.commit()
+    db.refresh(new_message)
+
+    return new_message
+
+
+@app.get("/residents/{resident_id}/messages")
+def list_messages(
+    resident_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    resident = db.query(Resident).filter(Resident.id == resident_id).first()
+    if not resident:
+        raise HTTPException(status_code=404, detail="Resident not found")
+
+    messages = db.query(Message).filter(
+        Message.resident_id == resident_id
+    ).order_by(Message.sent_at.asc()).all()
+
+    return [
+        {
+            "id": m.id,
+            "content": m.content,
+            "sent_at": m.sent_at,
+            "sender_name": m.sender.full_name,
+            "sender_role": m.sender.role.value,
+        }
+        for m in messages
+    ]
