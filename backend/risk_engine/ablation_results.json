@@ -1,0 +1,31 @@
+{
+  "methodology_note": "frailty_proxy is a SYNTHETIC stand-in (0.5*normalized_age + 0.5*physiological_instability_composite), constructed because PhysioNet 2019 contains no real InterRAI frailty assessment data. This ablation should be re-validated against real frailty_index/falls_risk/adl_hierarchy once sufficient ASTRA resident InterRAI data exists in production.",
+  "vitals_only": {
+    "mean_auroc": 0.6986143937508856,
+    "mean_auprc": 0.05753116989606986,
+    "mean_f1_at_0.5": 0.08698663176046703,
+    "fold_aurocs": [
+      0.6987999062886365,
+      0.6951772355482274,
+      0.7003871284767296,
+      0.6944462353537382,
+      0.7042614630870966
+    ],
+    "folds_used": 5
+  },
+  "vitals_plus_frailty_proxy": {
+    "mean_auroc": 0.6978793112914549,
+    "mean_auprc": 0.05691804716246583,
+    "mean_f1_at_0.5": 0.08730162121584266,
+    "fold_aurocs": [
+      0.7016366632691173,
+      0.6928764190009662,
+      0.7072206019610112,
+      0.6883655869499041,
+      0.6992972852762749
+    ],
+    "folds_used": 5
+  },
+  "delta_auroc": -0.0007350824594307692,
+  "delta_auprc": -0.0006131227336040254
+}

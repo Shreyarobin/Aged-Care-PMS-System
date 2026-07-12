@@ -25,6 +25,7 @@ def generate_reading():
         "blood_pressure_diastolic": round(random.uniform(70, 88), 1),
         "spo2": round(random.uniform(94, 99), 1),
         "temperature": round(random.uniform(36.3, 37.2), 1),
+        "respiratory_rate": round(random.uniform(14, 20), 1),
     }
 
 

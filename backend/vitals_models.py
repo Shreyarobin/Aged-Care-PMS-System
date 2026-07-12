@@ -16,5 +16,6 @@ class VitalsReading(Base):
     blood_pressure_diastolic = Column(Float, nullable=False)
     spo2 = Column(Float, nullable=False)
     temperature = Column(Float, nullable=False)
+    respiratory_rate = Column(Float, nullable=True)
 
     resident = relationship("Resident")

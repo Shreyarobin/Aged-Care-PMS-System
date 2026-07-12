@@ -1,0 +1,12 @@
+{
+  "threshold": 0.6900000000000002,
+  "threshold_f1": 0.10927300071063809,
+  "risk_levels": {
+    "low": "<0.4",
+    "medium": "0.4-0.6",
+    "high": ">0.6"
+  },
+  "imbalance_method": "sample_weight",
+  "cv_mean_auroc": 0.6991147997643857,
+  "cv_mean_auprc": 0.057157151299698436
+}

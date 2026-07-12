@@ -10,6 +10,7 @@ type VitalsReading = {
   blood_pressure_diastolic: number;
   spo2: number;
   temperature: number;
+  respiratory_rate: number | null;
   recorded_at: string;
 };
 
@@ -63,7 +64,7 @@ export default function VitalsTab() {
         {readings.slice(0, 10).map((reading) => (
           <div key={reading.id} style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", borderTop: "1px solid var(--color-border)", paddingTop: "8px" }}>
             <span style={{ color: "var(--color-text-muted)" }}>{new Date(reading.recorded_at).toLocaleTimeString()}</span>
-            <span>HR {reading.heart_rate} · BP {reading.blood_pressure_systolic}/{reading.blood_pressure_diastolic} · SpO2 {reading.spo2}% · {reading.temperature}°C</span>
+            <span>HR {reading.heart_rate} · BP {reading.blood_pressure_systolic}/{reading.blood_pressure_diastolic} · SpO2 {reading.spo2}% · Resp {reading.respiratory_rate ?? "—"} · {reading.temperature}°C</span>
           </div>
         ))}
       </div>

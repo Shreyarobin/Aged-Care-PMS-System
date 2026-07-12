@@ -17,6 +17,7 @@ from vitals_models import VitalsReading
 from message_models import Message
 from incident_models import Incident, IncidentType, IncidentSeverity
 from staffshift_models import StaffShift, ShiftType
+from risk_engine import inference, alerts
 from auth import hash_password, verify_password, create_access_token, get_current_user, require_roles
 
 app = FastAPI()
@@ -102,6 +103,7 @@ class VitalsReadingCreate(BaseModel):
     blood_pressure_diastolic: float
     spo2: float
     temperature: float
+    respiratory_rate: float | None = None
 
 
 class MessageCreate(BaseModel):
@@ -494,6 +496,7 @@ def create_vitals_reading(
         blood_pressure_diastolic=reading.blood_pressure_diastolic,
         spo2=reading.spo2,
         temperature=reading.temperature,
+        respiratory_rate=reading.respiratory_rate,
         recorded_at=datetime.now(timezone.utc),
     )
     db.add(new_reading)
@@ -516,6 +519,27 @@ def list_vitals_readings(
     return db.query(VitalsReading).filter(
         VitalsReading.resident_id == resident_id
     ).order_by(VitalsReading.recorded_at.desc()).limit(50).all()
+
+
+@app.get("/residents/{resident_id}/risk-score")
+def get_risk_score(
+    resident_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    resident = db.query(Resident).filter(Resident.id == resident_id).first()
+    if not resident:
+        raise HTTPException(status_code=404, detail="Resident not found")
+
+    return inference.get_risk_score(resident_id, db)
+
+
+@app.get("/risk-alerts")
+def get_risk_alerts(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    return alerts.get_risk_alerts(db)
 
 
 @app.post("/residents/{resident_id}/messages")
