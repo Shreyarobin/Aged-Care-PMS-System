@@ -4,3 +4,4 @@ backend/__pycache__/
 .vscode/
 backend/risk_engine/processed_data.csv
 backend/risk_engine/age_lookup.csv
+backend/careassist/chroma_db/

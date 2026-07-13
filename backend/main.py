@@ -18,6 +18,9 @@ from message_models import Message
 from incident_models import Incident, IncidentType, IncidentSeverity
 from staffshift_models import StaffShift, ShiftType
 from risk_engine import inference, alerts
+from ai_query_models import AIQuery
+from careassist import generator
+import json
 from auth import hash_password, verify_password, create_access_token, get_current_user, require_roles
 
 app = FastAPI()
@@ -104,6 +107,10 @@ class VitalsReadingCreate(BaseModel):
     spo2: float
     temperature: float
     respiratory_rate: float | None = None
+
+
+class CareAssistQueryCreate(BaseModel):
+    query: str
 
 
 class MessageCreate(BaseModel):
@@ -540,6 +547,70 @@ def get_risk_alerts(
     current_user: dict = Depends(get_current_user),
 ):
     return alerts.get_risk_alerts(db)
+
+
+@app.post("/residents/{resident_id}/careassist")
+def query_careassist(
+    resident_id: int,
+    request: CareAssistQueryCreate,
+    db: Session = Depends(get_db),
+    current_user_data: dict = Depends(get_current_user),
+):
+    resident = db.query(Resident).filter(Resident.id == resident_id).first()
+    if not resident:
+        raise HTTPException(status_code=404, detail="Resident not found")
+
+    current_user = db.query(User).filter(User.email == current_user_data["email"]).first()
+
+    result = generator.generate_response(request.query, resident_id, db)
+
+    new_ai_query = AIQuery(
+        resident_id=resident_id,
+        asked_by_id=current_user.id,
+        query_text=result["query"],
+        response_text=result["response"],
+        escalated=result["escalated"],
+        escalation_category=result.get("escalation_category"),
+        sources=json.dumps(result.get("sources", [])),
+        model_used=result.get("model"),
+        asked_at=datetime.now(timezone.utc),
+    )
+    db.add(new_ai_query)
+    db.commit()
+    db.refresh(new_ai_query)
+
+    result["query_id"] = new_ai_query.id
+    return result
+
+
+@app.get("/residents/{resident_id}/careassist/history")
+def get_careassist_history(
+    resident_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    resident = db.query(Resident).filter(Resident.id == resident_id).first()
+    if not resident:
+        raise HTTPException(status_code=404, detail="Resident not found")
+
+    queries = db.query(AIQuery).filter(
+        AIQuery.resident_id == resident_id
+    ).order_by(AIQuery.asked_at.desc()).all()
+
+    return [
+        {
+            "id": q.id,
+            "query_text": q.query_text,
+            "response_text": q.response_text,
+            "escalated": q.escalated,
+            "escalation_category": q.escalation_category,
+            "sources": json.loads(q.sources) if q.sources else [],
+            "model_used": q.model_used,
+            "asked_at": q.asked_at,
+            "asked_by_name": q.asked_by.full_name,
+        }
+        for q in queries
+    ]
 
 
 @app.post("/residents/{resident_id}/messages")

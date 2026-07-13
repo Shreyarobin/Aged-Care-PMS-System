@@ -11,6 +11,9 @@
   --color-coral-light: #faece7;
   --color-coral-text: #993c1d;
   --color-border: #e8e4dc;
+  --color-amber: #c9922f;
+  --color-amber-light: #faf1de;
+  --color-amber-text: #8a5f14;
 }
 
 * {

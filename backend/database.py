@@ -19,6 +19,7 @@ import emar_models
 import vitals_models
 import message_models
 import incident_models
+import ai_query_models
 import staffshift_models
 
 def create_tables():
