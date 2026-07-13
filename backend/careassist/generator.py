@@ -1,5 +1,5 @@
 """
-generator.py — Sprint 3, Step 3.6
+generator.py — Sprint 3, Step 3.6 (+ streaming upgrade, Sprint 4 follow-up)
 Aged Care PMS — CareAssist RAG Foundation
 
 Main entry point for a CareAssist query. Wires together everything built so
@@ -23,11 +23,21 @@ openai/gpt-oss-120b, Groq's recommended flagship replacement — still an
 open-weight model served on Groq's fast inference infrastructure, not
 Claude/OpenAI's own hosted API.
 
+Streaming: generate_response_stream() yields NDJSON lines (one JSON object
+per line) so the frontend can display tokens as they arrive instead of
+waiting for the full ~500-800 token response. Line types:
+  {"type": "chunk", "text": "..."}          — one piece of generated text
+  {"type": "done", "response": "...", ...}  — final full text + metadata
+The non-streaming generate_response() is kept for any non-HTTP callers
+(e.g. scripts, tests) that just want a single return value.
+
 Usage (called from main.py):
-    from careassist.generator import generate_response
-    result = generate_response(query, resident_id, db)
+    from careassist.generator import generate_response_stream
+    for line in generate_response_stream(query, resident_id, db):
+        ...
 """
 
+import json
 import os
 from datetime import datetime, timezone
 
@@ -41,6 +51,7 @@ load_dotenv()
 
 MODEL_NAME = "openai/gpt-oss-120b"
 N_RETRIEVED_RESOURCES = 3
+MAX_TOKENS = 500  # lowered from 800 — shorter worst-case wait, still enough for a full answer
 
 _groq_client = None
 
@@ -57,66 +68,88 @@ def _get_client() -> Groq:
     return _groq_client
 
 
-def generate_response(query: str, resident_id: int, db: Session) -> dict:
-    """Main entry point. Returns a dict with at minimum: resident_id, query,
-    response, escalated, timestamp. If escalated is True, `response` is the
-    safety router's escalation message and no LLM call was made."""
+def _build_done_payload(response_text, escalated, escalation_category, sources, model, timestamp, error=None):
+    payload = {
+        "type": "done",
+        "response": response_text,
+        "escalated": escalated,
+        "escalation_category": escalation_category,
+        "sources": sources,
+        "model": model,
+        "timestamp": timestamp,
+    }
+    if error is not None:
+        payload["error"] = error
+    return payload
+
+
+def generate_response_stream(query: str, resident_id: int, db: Session):
+    """Generator yielding NDJSON lines (see module docstring). Safety check
+    runs first and, if triggered, yields a single 'done' line immediately —
+    no resident data pulled, no LLM call made."""
     timestamp = datetime.now(timezone.utc).isoformat()
 
     safety_result = safety_router.check_safety(query)
     if safety_result["escalate"]:
-        return {
-            "resident_id": resident_id,
-            "query": query,
-            "response": safety_result["message"],
-            "escalated": True,
-            "escalation_category": safety_result["category"],
-            "sources": [],
-            "model": None,
-            "timestamp": timestamp,
-        }
+        yield json.dumps(_build_done_payload(
+            safety_result["message"], True, safety_result["category"], [], None, timestamp,
+        )) + "\n"
+        return
 
     resident_context = context_injector.build_resident_context(resident_id, db)
     retrieved_resources = retriever.retrieve_relevant_resources(query, n_results=N_RETRIEVED_RESOURCES)
     messages = prompt_builder.build_messages(query, resident_context, retrieved_resources)
+    sources = [{"title": r["category_title"], "url": r["url"]} for r in retrieved_resources]
 
+    full_text = ""
     try:
         client = _get_client()
-        completion = client.chat.completions.create(
+        stream = client.chat.completions.create(
             model=MODEL_NAME,
             messages=messages,
-            temperature=0.3,  # lower temperature: clinical decision-support context favors
-                               # consistent, grounded answers over creative variation
-            max_tokens=800,
+            temperature=0.3,
+            max_tokens=MAX_TOKENS,
+            stream=True,
         )
-        response_text = completion.choices[0].message.content
+        for chunk in stream:
+            delta = chunk.choices[0].delta.content
+            if delta:
+                full_text += delta
+                yield json.dumps({"type": "chunk", "text": delta}) + "\n"
     except Exception as e:
-        return {
-            "resident_id": resident_id,
-            "query": query,
-            "response": (
-                "CareAssist couldn't generate a response right now due to a technical "
-                "issue. Please try again, or consult the relevant guidance directly."
-            ),
-            "escalated": False,
-            "escalation_category": None,
-            "sources": [
-                {"title": r["category_title"], "url": r["url"]} for r in retrieved_resources
-            ],
-            "model": MODEL_NAME,
-            "error": str(e),
-            "timestamp": timestamp,
-        }
+        yield json.dumps(_build_done_payload(
+            "CareAssist couldn't generate a response right now due to a technical issue. "
+            "Please try again, or consult the relevant guidance directly.",
+            False, None, sources, MODEL_NAME, timestamp, error=str(e),
+        )) + "\n"
+        return
+
+    yield json.dumps(_build_done_payload(
+        full_text, False, None, sources, MODEL_NAME, timestamp,
+    )) + "\n"
+
+
+def generate_response(query: str, resident_id: int, db: Session) -> dict:
+    """Non-streaming convenience wrapper — consumes generate_response_stream()
+    fully and returns a single combined dict, matching the original Step 3.6
+    interface. Useful for scripts/tests that don't need incremental output."""
+    full_content = ""
+    final = None
+    for line in generate_response_stream(query, resident_id, db):
+        parsed = json.loads(line)
+        if parsed["type"] == "chunk":
+            full_content += parsed["text"]
+        elif parsed["type"] == "done":
+            final = parsed
 
     return {
         "resident_id": resident_id,
         "query": query,
-        "response": response_text,
-        "escalated": False,
-        "escalation_category": None,
-        "sources": [
-            {"title": r["category_title"], "url": r["url"]} for r in retrieved_resources
-        ],
-        "model": MODEL_NAME,
-        "timestamp": timestamp,
+        "response": final["response"],
+        "escalated": final["escalated"],
+        "escalation_category": final["escalation_category"],
+        "sources": final["sources"],
+        "model": final["model"],
+        "timestamp": final["timestamp"],
+        **({"error": final["error"]} if "error" in final else {}),
     }

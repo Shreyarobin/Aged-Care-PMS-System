@@ -1,6 +1,7 @@
 from datetime import date, datetime, timezone
 
 from fastapi import FastAPI, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -562,25 +563,32 @@ def query_careassist(
 
     current_user = db.query(User).filter(User.email == current_user_data["email"]).first()
 
-    result = generator.generate_response(request.query, resident_id, db)
+    def stream_and_save():
+        final_payload = None
+        for line in generator.generate_response_stream(request.query, resident_id, db):
+            yield line
+            parsed = json.loads(line)
+            if parsed["type"] == "done":
+                final_payload = parsed
 
-    new_ai_query = AIQuery(
-        resident_id=resident_id,
-        asked_by_id=current_user.id,
-        query_text=result["query"],
-        response_text=result["response"],
-        escalated=result["escalated"],
-        escalation_category=result.get("escalation_category"),
-        sources=json.dumps(result.get("sources", [])),
-        model_used=result.get("model"),
-        asked_at=datetime.now(timezone.utc),
-    )
-    db.add(new_ai_query)
-    db.commit()
-    db.refresh(new_ai_query)
+        if final_payload is not None:
+            new_ai_query = AIQuery(
+                resident_id=resident_id,
+                asked_by_id=current_user.id,
+                query_text=request.query,
+                response_text=final_payload["response"],
+                escalated=final_payload["escalated"],
+                escalation_category=final_payload.get("escalation_category"),
+                sources=json.dumps(final_payload.get("sources", [])),
+                model_used=final_payload.get("model"),
+                asked_at=datetime.now(timezone.utc),
+            )
+            db.add(new_ai_query)
+            db.commit()
+            db.refresh(new_ai_query)
+            yield json.dumps({"type": "saved", "query_id": new_ai_query.id}) + "\n"
 
-    result["query_id"] = new_ai_query.id
-    return result
+    return StreamingResponse(stream_and_save(), media_type="application/x-ndjson")
 
 
 @app.get("/residents/{resident_id}/careassist/history")

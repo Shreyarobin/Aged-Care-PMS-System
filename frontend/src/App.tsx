@@ -16,6 +16,7 @@ import EditResidentForm from "./pages/EditResidentForm";
 import InterRAITab from "./pages/InterRAITab";
 import MessagesPage from "./pages/MessagesPage";
 import IncidentsTab from "./pages/IncidentsTab";
+import CareAssistPage from "./pages/CareAssistPage";
 import ManagerDashboard from "./pages/ManagerDashboard";
 import StaffRoster from "./pages/StaffRoster";
 import ComplianceOverview from "./pages/ComplianceOverview";
@@ -49,6 +50,7 @@ function App() {
             <Route path="vitals" element={<VitalsTab />} />
             <Route path="notes" element={<NotesTab />} />
             <Route path="medications" element={<MedicationsTab />} />
+            <Route path="careassist" element={<CareAssistPage />} />
           </Route>
         </Route>
       </Route>

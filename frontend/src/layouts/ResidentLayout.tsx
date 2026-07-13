@@ -14,6 +14,7 @@ export default function ResidentLayout() {
     { label: "Vitals", path: `/residents/${id}/vitals` },
     { label: "Notes", path: `/residents/${id}/notes` },
     { label: "Medications", path: `/residents/${id}/medications` },
+    { label: "CareAssist", path: `/residents/${id}/careassist` },
     { label: "InterRAI", path: `/residents/${id}/interrai` },
     { label: "Incidents", path: `/residents/${id}/incidents` },
   ];
