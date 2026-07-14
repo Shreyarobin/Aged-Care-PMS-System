@@ -1,8 +1,12 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+﻿import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { useOutletContext } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useAuth } from "../context/AuthContext";
+import { Button } from "../components/ui/Button";
+import { Alert } from "../components/ui/Alert";
+import { Badge } from "../components/ui/Badge";
+import { Card } from "../components/ui/Card";
 
 type Source = { title: string; url: string };
 
@@ -18,16 +22,12 @@ type ChatMessage = {
 
 type ResidentContext = { resident: { id: number; full_name: string } };
 
-// Styled overrides so react-markdown's output (tables, bold text, lists)
-// matches the app's existing design tokens instead of using browser defaults.
 const markdownComponents = {
   p: (props: any) => <p style={{ margin: "0 0 8px 0", lineHeight: 1.5, overflowWrap: "anywhere" }} {...props} />,
   strong: (props: any) => <strong style={{ fontWeight: 600 }} {...props} />,
   ul: (props: any) => <ul style={{ margin: "0 0 8px 0", paddingLeft: "20px" }} {...props} />,
   ol: (props: any) => <ol style={{ margin: "0 0 8px 0", paddingLeft: "20px" }} {...props} />,
   li: (props: any) => <li style={{ marginBottom: "4px", overflowWrap: "anywhere" }} {...props} />,
-  // Tables scroll WITHIN their own box (own overflow-x), so a wide table
-  // never forces the whole chat panel to scroll sideways.
   table: (props: any) => (
     <div style={{ overflowX: "auto", maxWidth: "100%", margin: "8px 0" }}>
       <table style={{ borderCollapse: "collapse", width: "100%", fontSize: "13px", tableLayout: "fixed" }} {...props} />
@@ -84,9 +84,6 @@ export default function CareAssistPage() {
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  // Step 4.4: load past query history on open. Step 4.3's "auto-inject
-  // resident context on open" comes for free here — `resident` arrives via
-  // ResidentLayout's outlet context automatically, same as every other tab.
   useEffect(() => {
     fetch(`http://127.0.0.1:8000/residents/${resident.id}/careassist/history`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -135,8 +132,6 @@ export default function CareAssistPage() {
       timestamp: new Date().toISOString(),
     };
 
-    // Placeholder assistant message that fills in progressively as chunks arrive —
-    // this is what lets the response appear word-by-word instead of all at once.
     const assistantId = `temp-assistant-${Date.now()}`;
     const assistantPlaceholder: ChatMessage = {
       id: assistantId,
@@ -171,7 +166,7 @@ export default function CareAssistPage() {
 
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split("\n");
-          buffer = lines.pop() ?? ""; // last entry may be an incomplete line — hold it for next read
+          buffer = lines.pop() ?? "";
 
           for (const line of lines) {
             if (!line.trim()) continue;
@@ -217,27 +212,25 @@ export default function CareAssistPage() {
   }
 
   return (
-    <div
+    <Card
+      padding="none"
       style={{
         display: "flex",
         flexDirection: "column",
         height: "70vh",
-        backgroundColor: "var(--color-surface)",
-        border: "1px solid var(--color-border)",
-        borderRadius: "12px",
         overflow: "hidden",
       }}
     >
-      <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--color-border)" }}>
-        <div style={{ fontSize: "15px", fontWeight: 500 }}>CareAssist</div>
-        <div style={{ fontSize: "12px", color: "var(--color-text-muted)", marginTop: "2px" }}>
+      <div style={{ padding: "var(--space-4) var(--space-5)", borderBottom: "1px solid var(--color-border)" }}>
+        <div style={{ fontSize: "var(--font-size-md)", fontWeight: "var(--font-weight-medium)" }}>CareAssist</div>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: "2px" }}>
           Ask about {resident.full_name}'s care, compliance guidance, or documentation requirements.
         </div>
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: "20px", display: "flex", flexDirection: "column", gap: "16px" }}>
+      <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: "var(--space-5)", display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
         {historyLoaded && messages.length === 0 && (
-          <div style={{ fontSize: "13px", color: "var(--color-text-muted)", textAlign: "center", marginTop: "40px" }}>
+          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", textAlign: "center", marginTop: "var(--space-10)" }}>
             No questions asked yet. Try something like "What guidance exists for medication administration?"
           </div>
         )}
@@ -250,9 +243,9 @@ export default function CareAssistPage() {
                   style={{
                     backgroundColor: "var(--color-teal)",
                     color: "white",
-                    padding: "10px 14px",
-                    borderRadius: "12px 12px 2px 12px",
-                    fontSize: "14px",
+                    padding: "var(--space-3) var(--space-4)",
+                    borderRadius: "var(--radius-lg) var(--radius-lg) 2px var(--radius-lg)",
+                    fontSize: "var(--font-size-base)",
                   }}
                 >
                   {m.content}
@@ -263,13 +256,15 @@ export default function CareAssistPage() {
                     backgroundColor: "var(--color-coral-light)",
                     border: "1px solid var(--color-coral)",
                     color: "var(--color-coral-text)",
-                    padding: "12px 14px",
-                    borderRadius: "12px 12px 12px 2px",
-                    fontSize: "14px",
+                    padding: "var(--space-3) var(--space-4)",
+                    borderRadius: "var(--radius-lg) var(--radius-lg) var(--radius-lg) 2px",
+                    fontSize: "var(--font-size-base)",
                   }}
                 >
-                  <div style={{ fontSize: "11px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.03em", marginBottom: "6px" }}>
-                    ⚠ Escalation required{m.escalationCategory ? ` — ${m.escalationCategory.replace(/_/g, " ")}` : ""}
+                  <div style={{ marginBottom: "var(--space-2)" }}>
+                    <Badge variant="danger" size="sm">
+                      Escalation required{m.escalationCategory ? ` — ${m.escalationCategory.replace(/_/g, " ")}` : ""}
+                    </Badge>
                   </div>
                   {m.content}
                 </div>
@@ -278,9 +273,9 @@ export default function CareAssistPage() {
                   style={{
                     backgroundColor: "var(--color-bg)",
                     border: "1px solid var(--color-border)",
-                    padding: "12px 14px",
-                    borderRadius: "12px 12px 12px 2px",
-                    fontSize: "14px",
+                    padding: "var(--space-3) var(--space-4)",
+                    borderRadius: "var(--radius-lg) var(--radius-lg) var(--radius-lg) 2px",
+                    fontSize: "var(--font-size-base)",
                     color: "var(--color-text-muted)",
                   }}
                 >
@@ -291,9 +286,9 @@ export default function CareAssistPage() {
                   style={{
                     backgroundColor: "var(--color-bg)",
                     border: "1px solid var(--color-border)",
-                    padding: "12px 14px",
-                    borderRadius: "12px 12px 12px 2px",
-                    fontSize: "14px",
+                    padding: "var(--space-3) var(--space-4)",
+                    borderRadius: "var(--radius-lg) var(--radius-lg) var(--radius-lg) 2px",
+                    fontSize: "var(--font-size-base)",
                     minWidth: 0,
                     overflowX: "hidden",
                   }}
@@ -302,22 +297,9 @@ export default function CareAssistPage() {
                     {m.content}
                   </ReactMarkdown>
                   {m.sources && m.sources.length > 0 && (
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "10px" }}>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)", marginTop: "var(--space-3)" }}>
                       {m.sources.map((s, i) => (
-                        <a
-                          key={i}
-                          href={s.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{
-                            fontSize: "11px",
-                            padding: "3px 9px",
-                            borderRadius: "999px",
-                            backgroundColor: "var(--color-teal-light)",
-                            color: "var(--color-sage-text)",
-                            textDecoration: "none",
-                          }}
-                        >
+                        <a key={i} href={s.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: "var(--font-size-xs)", padding: "3px 9px", borderRadius: "var(--radius-full)", backgroundColor: "var(--color-teal-light)", color: "var(--color-sage-text)", textDecoration: "none" }}>
                           {s.title || "Source"}
                         </a>
                       ))}
@@ -332,9 +314,13 @@ export default function CareAssistPage() {
         <div ref={bottomRef} />
       </div>
 
-      {error && <div style={{ padding: "8px 20px", fontSize: "13px", color: "var(--color-coral-text)" }}>{error}</div>}
+      {error && (
+        <div style={{ padding: "var(--space-2) var(--space-5)" }}>
+          <Alert variant="danger">{error}</Alert>
+        </div>
+      )}
 
-      <div style={{ padding: "16px 20px", borderTop: "1px solid var(--color-border)", display: "flex", gap: "10px" }}>
+      <div style={{ padding: "var(--space-4) var(--space-5)", borderTop: "1px solid var(--color-border)", display: "flex", gap: "var(--space-3)" }}>
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -344,31 +330,17 @@ export default function CareAssistPage() {
           style={{
             flex: 1,
             resize: "none",
-            padding: "10px 12px",
-            borderRadius: "8px",
-            border: "1px solid var(--color-border)",
-            fontSize: "14px",
+            padding: "10px var(--space-3)",
+            borderRadius: "var(--radius-md)",
+            border: "1.5px solid var(--color-border)",
+            fontSize: "var(--font-size-base)",
             fontFamily: "inherit",
           }}
         />
-        <button
-          onClick={sendQuery}
-          disabled={loading || !input.trim()}
-          style={{
-            padding: "10px 18px",
-            backgroundColor: "var(--color-teal)",
-            color: "white",
-            border: "none",
-            borderRadius: "8px",
-            fontSize: "14px",
-            fontWeight: 500,
-            cursor: loading || !input.trim() ? "not-allowed" : "pointer",
-            opacity: loading || !input.trim() ? 0.6 : 1,
-          }}
-        >
+        <Button onClick={sendQuery} disabled={loading || !input.trim()} loading={loading}>
           Send
-        </button>
+        </Button>
       </div>
-    </div>
+    </Card>
   );
 }

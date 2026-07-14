@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { Card } from "../components/ui/Card";
+import { Button } from "../components/ui/Button";
+import { Badge } from "../components/ui/Badge";
 
 type ProgressNote = {
   id: number;
@@ -10,6 +13,13 @@ type ProgressNote = {
 };
 
 type ResidentContext = { resident: { id: number } };
+
+const CATEGORY_LABELS: Record<string, string> = {
+  general: "General",
+  incident: "Incident",
+  family_contact: "Family contact",
+  medical: "Medical",
+};
 
 export default function NotesTab() {
   const { resident } = useOutletContext<ResidentContext>();
@@ -44,13 +54,21 @@ export default function NotesTab() {
     }
   }
 
+  const selectStyle: React.CSSProperties = {
+    display: "block",
+    marginBottom: "var(--space-2)",
+    padding: "8px 12px",
+    borderRadius: "var(--radius-md)",
+    border: "1.5px solid var(--color-border)",
+    fontSize: "var(--font-size-sm)",
+    fontFamily: "inherit",
+    background: "var(--color-surface)",
+    color: "var(--color-text)",
+  };
+
   return (
-    <div style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "12px", padding: "20px" }}>
-      <select
-        value={category}
-        onChange={(e) => setCategory(e.target.value)}
-        style={{ display: "block", marginBottom: "8px", padding: "8px", borderRadius: "8px", border: "1px solid var(--color-border)", fontSize: "13px" }}
-      >
+    <Card>
+      <select value={category} onChange={(e) => setCategory(e.target.value)} style={selectStyle}>
         <option value="general">General</option>
         <option value="incident">Incident</option>
         <option value="family_contact">Family contact</option>
@@ -60,26 +78,36 @@ export default function NotesTab() {
         value={content}
         onChange={(e) => setContent(e.target.value)}
         placeholder="Write an observation..."
-        style={{ display: "block", width: "100%", minHeight: "70px", padding: "10px", borderRadius: "8px", border: "1px solid var(--color-border)", fontSize: "14px", marginBottom: "8px", fontFamily: "inherit" }}
+        style={{
+          display: "block",
+          width: "100%",
+          minHeight: "70px",
+          padding: "10px 12px",
+          borderRadius: "var(--radius-md)",
+          border: "1.5px solid var(--color-border)",
+          fontSize: "var(--font-size-base)",
+          marginBottom: "var(--space-2)",
+          fontFamily: "inherit",
+          resize: "vertical",
+        }}
       />
-      <button
-        onClick={handleAddNote}
-        disabled={saving || !content.trim()}
-        style={{ padding: "8px 16px", backgroundColor: "var(--color-teal)", color: "white", border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: 500 }}
-      >
+      <Button onClick={handleAddNote} disabled={saving || !content.trim()} loading={saving} size="sm">
         {saving ? "Saving..." : "Save note"}
-      </button>
+      </Button>
 
-      <div style={{ marginTop: "20px", display: "flex", flexDirection: "column", gap: "10px" }}>
+      <div style={{ marginTop: "var(--space-5)", display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
         {notes.map((note) => (
-          <div key={note.id} style={{ borderTop: "1px solid var(--color-border)", paddingTop: "10px" }}>
-            <p style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>
-              {note.category} · {new Date(note.written_at).toLocaleString()}
-            </p>
-            <p style={{ fontSize: "14px", marginTop: "2px" }}>{note.content}</p>
+          <div key={note.id} style={{ borderTop: "1px solid var(--color-border)", paddingTop: "var(--space-3)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", marginBottom: "var(--space-1)" }}>
+              <Badge variant="neutral" size="sm">{CATEGORY_LABELS[note.category] ?? note.category}</Badge>
+              <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>
+                {new Date(note.written_at).toLocaleString()}
+              </span>
+            </div>
+            <p style={{ fontSize: "var(--font-size-base)" }}>{note.content}</p>
           </div>
         ))}
       </div>
-    </div>
+    </Card>
   );
 }

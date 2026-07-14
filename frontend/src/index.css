@@ -1,19 +1,66 @@
 :root {
+  /* Color — base */
   --color-bg: #faf8f4;
   --color-surface: #ffffff;
   --color-text: #2c2c2a;
   --color-text-muted: #6b6a64;
+  --color-border: #e8e4dc;
+
+  /* Color — brand / semantic */
   --color-teal: #0f6e56;
   --color-teal-light: #e1f5ee;
+  --color-teal-dark: #0b5643;
   --color-sage: #e1f5ee;
   --color-sage-text: #0f6e56;
   --color-coral: #d85a30;
   --color-coral-light: #faece7;
   --color-coral-text: #993c1d;
-  --color-border: #e8e4dc;
   --color-amber: #c9922f;
   --color-amber-light: #faf1de;
   --color-amber-text: #8a5f14;
+
+  /* Typography scale */
+  --font-size-xs: 11px;
+  --font-size-sm: 13px;
+  --font-size-base: 14px;
+  --font-size-md: 15px;
+  --font-size-lg: 18px;
+  --font-size-xl: 22px;
+  --font-size-2xl: 28px;
+  --font-size-3xl: 36px;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.5;
+
+  /* Spacing scale (4px base unit) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* Radius scale */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 999px;
+
+  /* Elevation (shadows) — subtle, matches the "trustworthy, not flashy" tone */
+  --shadow-sm: 0 1px 2px rgba(44, 44, 42, 0.06);
+  --shadow-md: 0 2px 8px rgba(44, 44, 42, 0.08);
+  --shadow-lg: 0 8px 24px rgba(44, 44, 42, 0.12);
+
+  /* Motion timing — consistent easing across the app */
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-fast: 0.15s;
+  --duration-base: 0.2s;
+  --duration-slow: 0.3s;
 }
 
 * {
@@ -23,7 +70,7 @@
 }
 
 body {
-  font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: "Plus Jakarta Sans", -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   background-color: var(--color-bg);
   color: var(--color-text);
   -webkit-font-smoothing: antialiased;
@@ -40,4 +87,98 @@ button {
 
 input {
   font-family: inherit;
+}
+
+/* Responsive staff sidebar — off-canvas below 768px, persistent above it.
+   Real CSS media queries rather than JS window-width polling: more
+   efficient, no extra re-renders on resize, works correctly immediately
+   on first paint. */
+.staff-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 100;
+  transform: translateX(-100%);
+  transition: transform var(--duration-slow) var(--ease-standard);
+}
+
+.staff-sidebar.open {
+  transform: translateX(0);
+}
+
+.staff-sidebar-backdrop {
+  display: none;
+}
+
+.staff-sidebar-backdrop.open {
+  display: block;
+  position: fixed;
+  inset: 0;
+  background: rgba(44, 44, 42, 0.4);
+  z-index: 99;
+}
+
+.staff-mobile-topbar {
+  display: flex;
+}
+
+@media (min-width: 768px) {
+  .staff-sidebar {
+    position: relative;
+    transform: none;
+    transition: none;
+  }
+  .staff-sidebar-backdrop {
+    display: none !important;
+  }
+  .staff-mobile-topbar {
+    display: none !important;
+  }
+}
+
+/* Responsive page padding — every page uses the same spacing tokens for
+   its outer padding (var(--space-10) etc.), so redefining what those
+   tokens RESOLVE TO at narrow viewports automatically makes every page's
+   padding responsive, without touching a single page component. This
+   works because inline styles only "win" specificity for the property
+   they set (padding) — the CSS variable reference *inside* that value is
+   still resolved through the normal cascade, which media queries affect. */
+@media (max-width: 640px) {
+  :root {
+    --space-10: 20px;
+    --space-8: 16px;
+    --space-6: 14px;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 900px) {
+  :root {
+    --space-10: 28px;
+    --space-8: 22px;
+  }
+}
+
+/* Responsive spacing — every page uses these tokens for outer padding, so
+   redefining them here shrinks page padding site-wide on small screens
+   without needing to touch each individual page file. */
+@media (max-width: 640px) {
+  :root {
+    --space-10: 20px;
+    --space-8: 16px;
+    --space-6: 16px;
+  }
+}
+
+/* Consistent, visible keyboard-focus indicator across every interactive
+   element — :focus-visible specifically (not plain :focus) so it only
+   shows for keyboard/assistive-tech navigation, not every mouse click. */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--color-teal);
+  outline-offset: 2px;
 }

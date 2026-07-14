@@ -20,10 +20,12 @@ import CareAssistPage from "./pages/CareAssistPage";
 import ManagerDashboard from "./pages/ManagerDashboard";
 import StaffRoster from "./pages/StaffRoster";
 import ComplianceOverview from "./pages/ComplianceOverview";
+import LandingPage from "./pages/LandingPage";
 
 function App() {
   return (
     <Routes>
+      <Route path="/welcome" element={<LandingPage />} />
       <Route path="/login" element={<Login />} />
       <Route path="/unauthorized" element={<div style={{ padding: "40px" }}>You don't have access to this page.</div>} />
 

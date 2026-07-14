@@ -1,6 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useOutletContext } from "react-router-dom";
+import { motion } from "framer-motion";
+import { ClipboardPlus } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { Card } from "../components/ui/Card";
+import { Button } from "../components/ui/Button";
+import { Alert } from "../components/ui/Alert";
+import { useToast } from "../components/ui/Toast";
 
 type CarePlan = {
   id: number;
@@ -15,6 +21,7 @@ type ResidentContext = { resident: { id: number } };
 export default function CarePlanTab() {
   const { resident } = useOutletContext<ResidentContext>();
   const { token } = useAuth();
+  const showToast = useToast();
   const [plan, setPlan] = useState<CarePlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -42,7 +49,7 @@ export default function CarePlanTab() {
     fetchPlan();
   }, [resident.id, token]);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setSaving(true);
     setError("");
@@ -66,6 +73,7 @@ export default function CarePlanTab() {
       setForm({ goals: "", interventions: "", review_notes: "" });
       setShowForm(false);
       setLoading(true);
+      showToast("Care plan saved", "success");
       fetchPlan();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -74,100 +82,108 @@ export default function CarePlanTab() {
     }
   }
 
-  const inputStyle = {
-    display: "block", width: "100%", padding: "10px 12px",
-    marginTop: "4px", marginBottom: "16px",
-    border: "1px solid var(--color-border)", borderRadius: "8px",
-    fontSize: "14px", fontFamily: "inherit",
+  const textareaStyle: React.CSSProperties = {
+    display: "block",
+    width: "100%",
+    padding: "10px 12px",
+    marginTop: "4px",
+    marginBottom: "var(--space-4)",
+    border: "1.5px solid var(--color-border)",
+    borderRadius: "var(--radius-md)",
+    fontSize: "var(--font-size-base)",
+    fontFamily: "inherit",
+    resize: "vertical",
   };
 
-  const labelStyle = { fontSize: "13px", color: "var(--color-text-muted)" };
+  const labelStyle: React.CSSProperties = {
+    fontSize: "var(--font-size-sm)",
+    fontWeight: "var(--font-weight-medium)",
+    color: "var(--color-text)",
+  };
 
-  if (loading) return <p style={{ fontSize: "14px", color: "var(--color-text-muted)" }}>Loading...</p>;
+  if (loading) {
+    return <p style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-muted)" }}>Loading...</p>;
+  }
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "16px" }}>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          style={{
-            padding: "8px 18px",
-            backgroundColor: showForm ? "transparent" : "var(--color-teal)",
-            color: showForm ? "var(--color-text-muted)" : "white",
-            border: showForm ? "1px solid var(--color-border)" : "none",
-            borderRadius: "8px", fontSize: "13px", fontWeight: 500, cursor: "pointer",
-          }}
-        >
-          {showForm ? "Cancel" : plan ? "New care plan" : "+ Create care plan"}
-        </button>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "var(--space-4)" }}>
+        <Button variant={showForm ? "secondary" : "primary"} size="sm" onClick={() => setShowForm(!showForm)}>
+          {!showForm && <ClipboardPlus size={15} />}
+          {showForm ? "Cancel" : plan ? "New care plan" : "Create care plan"}
+        </Button>
       </div>
 
       {showForm && (
-        <div style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "12px", padding: "20px", marginBottom: "20px" }}>
-          <h2 style={{ fontSize: "16px", fontWeight: 500, marginBottom: "16px" }}>
-            {plan ? "Create new care plan (replaces current active plan)" : "Create care plan"}
-          </h2>
-          <form onSubmit={handleSubmit}>
-            <label style={labelStyle}>Goals *</label>
-            <textarea
-              value={form.goals}
-              onChange={(e) => setForm({ ...form, goals: e.target.value })}
-              required
-              placeholder="What is this care plan trying to achieve?"
-              style={{ ...inputStyle, minHeight: "80px" }}
-            />
-            <label style={labelStyle}>Interventions *</label>
-            <textarea
-              value={form.interventions}
-              onChange={(e) => setForm({ ...form, interventions: e.target.value })}
-              required
-              placeholder="What will staff actually do?"
-              style={{ ...inputStyle, minHeight: "80px" }}
-            />
-            <label style={labelStyle}>Review notes (optional)</label>
-            <textarea
-              value={form.review_notes}
-              onChange={(e) => setForm({ ...form, review_notes: e.target.value })}
-              placeholder="Any observations from the most recent review?"
-              style={{ ...inputStyle, minHeight: "60px" }}
-            />
-            {error && <p style={{ color: "var(--color-coral-text)", fontSize: "13px", marginBottom: "12px" }}>{error}</p>}
-            <button
-              type="submit"
-              disabled={saving}
-              style={{ padding: "10px 20px", backgroundColor: "var(--color-teal)", color: "white", border: "none", borderRadius: "8px", fontSize: "14px", fontWeight: 500, cursor: "pointer" }}
-            >
-              {saving ? "Saving..." : "Save care plan"}
-            </button>
-          </form>
-        </div>
+        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} style={{ marginBottom: "var(--space-5)" }}>
+          <Card>
+            <h2 style={{ fontSize: "var(--font-size-md)", fontWeight: "var(--font-weight-semibold)", marginBottom: "var(--space-4)" }}>
+              {plan ? "Create new care plan (replaces current active plan)" : "Create care plan"}
+            </h2>
+            <form onSubmit={handleSubmit}>
+              <label style={labelStyle}>Goals *</label>
+              <textarea
+                value={form.goals}
+                onChange={(e) => setForm({ ...form, goals: e.target.value })}
+                required
+                placeholder="What is this care plan trying to achieve?"
+                style={{ ...textareaStyle, minHeight: "80px" }}
+              />
+              <label style={labelStyle}>Interventions *</label>
+              <textarea
+                value={form.interventions}
+                onChange={(e) => setForm({ ...form, interventions: e.target.value })}
+                required
+                placeholder="What will staff actually do?"
+                style={{ ...textareaStyle, minHeight: "80px" }}
+              />
+              <label style={labelStyle}>Review notes (optional)</label>
+              <textarea
+                value={form.review_notes}
+                onChange={(e) => setForm({ ...form, review_notes: e.target.value })}
+                placeholder="Any observations from the most recent review?"
+                style={{ ...textareaStyle, minHeight: "60px" }}
+              />
+              {error && (
+                <div style={{ marginBottom: "var(--space-3)" }}>
+                  <Alert variant="danger">{error}</Alert>
+                </div>
+              )}
+              <Button type="submit" loading={saving}>
+                {saving ? "Saving..." : "Save care plan"}
+              </Button>
+            </form>
+          </Card>
+        </motion.div>
       )}
 
       {plan ? (
-        <div style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "12px", padding: "20px" }}>
-          <p style={{ fontSize: "13px", color: "var(--color-text-muted)", marginBottom: "4px" }}>Goals</p>
-          <p style={{ fontSize: "14px", marginBottom: "16px" }}>{plan.goals}</p>
-          <p style={{ fontSize: "13px", color: "var(--color-text-muted)", marginBottom: "4px" }}>Interventions</p>
-          <p style={{ fontSize: "14px", marginBottom: plan.review_notes ? "16px" : "0" }}>{plan.interventions}</p>
+        <Card>
+          <p style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: "var(--space-1)" }}>Goals</p>
+          <p style={{ fontSize: "var(--font-size-base)", marginBottom: "var(--space-4)" }}>{plan.goals}</p>
+          <p style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: "var(--space-1)" }}>Interventions</p>
+          <p style={{ fontSize: "var(--font-size-base)", marginBottom: plan.review_notes ? "var(--space-4)" : "0" }}>{plan.interventions}</p>
           {plan.review_notes && (
             <>
-              <p style={{ fontSize: "13px", color: "var(--color-text-muted)", marginBottom: "4px" }}>Review notes</p>
-              <p style={{ fontSize: "14px" }}>{plan.review_notes}</p>
+              <p style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: "var(--space-1)" }}>Review notes</p>
+              <p style={{ fontSize: "var(--font-size-base)" }}>{plan.review_notes}</p>
             </>
           )}
-          <p style={{ fontSize: "12px", color: "var(--color-text-muted)", marginTop: "16px" }}>Created {plan.created_date}</p>
-        </div>
+          <p style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: "var(--space-4)" }}>
+            Created {plan.created_date}
+          </p>
+        </Card>
       ) : (
         !showForm && (
-          <div style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "12px", padding: "40px", textAlign: "center" }}>
-            <p style={{ fontSize: "14px", color: "var(--color-text-muted)", marginBottom: "16px" }}>No active care plan for this resident.</p>
-            <button
-              onClick={() => setShowForm(true)}
-              style={{ padding: "10px 20px", backgroundColor: "var(--color-teal)", color: "white", border: "none", borderRadius: "8px", fontSize: "14px", fontWeight: 500, cursor: "pointer" }}
-            >
-              + Create care plan
-            </button>
-          </div>
+          <Card padding="lg" style={{ textAlign: "center" }}>
+            <p style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-muted)", marginBottom: "var(--space-4)" }}>
+              No active care plan for this resident.
+            </p>
+            <Button onClick={() => setShowForm(true)}>
+              <ClipboardPlus size={15} />
+              Create care plan
+            </Button>
+          </Card>
         )
       )}
     </div>

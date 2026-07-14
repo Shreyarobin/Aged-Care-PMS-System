@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import { Plus } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { Card } from "../components/ui/Card";
+import { Badge } from "../components/ui/Badge";
+import { Button } from "../components/ui/Button";
+import { Alert } from "../components/ui/Alert";
 
 type Resident = {
   id: number;
@@ -65,94 +71,72 @@ export default function ResidentOverview() {
   const mediumCount = riskAlerts.filter((a) => a.risk_level === "medium").length;
 
   return (
-    <div style={{ padding: "40px", maxWidth: "720px" }}>
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
-  <h1 style={{ fontSize: "22px", fontWeight: 500, margin: 0 }}>Resident overview</h1>
-  <button
-    onClick={() => navigate("/residents/new")}
-    style={{ padding: "10px 18px", backgroundColor: "var(--color-teal)", color: "white", border: "none", borderRadius: "8px", fontSize: "14px", fontWeight: 500, cursor: "pointer" }}
-  >
-    + New resident
-  </button>
-</div>
-      {error && <p style={{ color: "var(--color-coral-text)" }}>{error}</p>}
-      {riskAlerts.length > 0 && (
-        <div
-          style={{
-            backgroundColor: highCount > 0 ? "var(--color-coral-light)" : "var(--color-amber-light)",
-            border: `1px solid ${highCount > 0 ? "var(--color-coral)" : "var(--color-amber)"}`,
-            borderRadius: "10px",
-            padding: "14px 18px",
-            marginBottom: "20px",
-            fontSize: "14px",
-            color: highCount > 0 ? "var(--color-coral-text)" : "var(--color-amber-text)",
-          }}
-        >
-          <strong>
-            {highCount > 0 && `${highCount} resident${highCount > 1 ? "s" : ""} at high risk`}
-            {highCount > 0 && mediumCount > 0 && " · "}
-            {mediumCount > 0 && `${mediumCount} at medium risk`}
-          </strong>
-          {" "}— {riskAlerts.map((a) => a.full_name).join(", ")}
+    <div style={{ padding: "var(--space-10)", maxWidth: "760px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--space-6)" }}>
+        <h1 style={{ fontSize: "var(--font-size-xl)", fontWeight: "var(--font-weight-semibold)" }}>Resident overview</h1>
+        <Button onClick={() => navigate("/residents/new")}>
+          <Plus size={16} />
+          New resident
+        </Button>
+      </div>
+
+      {error && (
+        <div style={{ marginBottom: "var(--space-4)" }}>
+          <Alert variant="danger">{error}</Alert>
         </div>
       )}
-      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+
+      {riskAlerts.length > 0 && (
+        <div style={{ marginBottom: "var(--space-5)" }}>
+          <Alert variant={highCount > 0 ? "danger" : "warning"}>
+            <strong>
+              {highCount > 0 && `${highCount} resident${highCount > 1 ? "s" : ""} at high risk`}
+              {highCount > 0 && mediumCount > 0 && " · "}
+              {mediumCount > 0 && `${mediumCount} at medium risk`}
+            </strong>
+            {" "}— {riskAlerts.map((a) => a.full_name).join(", ")}
+          </Alert>
+        </div>
+      )}
+
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
         {residents.map((resident, index) => {
           const alert = riskByResident.get(resident.id);
+          const accentColor = resident.discharge_date
+            ? "var(--color-border)"
+            : alert?.risk_level === "high"
+            ? "var(--color-coral)"
+            : alert?.risk_level === "medium"
+            ? "var(--color-amber)"
+            : "var(--color-teal)";
+
           return (
-            <div
+            <motion.div
               key={resident.id}
-              onClick={() => navigate(`/residents/${resident.id}`)}
-              style={{
-                backgroundColor: "var(--color-surface)",
-                border: "1px solid var(--color-border)",
-                borderLeft: resident.discharge_date
-                  ? "4px solid var(--color-border)"
-                  : alert?.risk_level === "high"
-                  ? "4px solid var(--color-coral)"
-                  : alert?.risk_level === "medium"
-                  ? "4px solid var(--color-amber)"
-                  : "4px solid var(--color-teal)",
-                borderRadius: "12px",
-                padding: "16px 20px",
-                cursor: "pointer",
-                opacity: 0,
-                animation: `fadeIn 0.4s ease-out ${index * 0.08}s forwards`,
-              }}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, ease: "easeOut", delay: index * 0.05 }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <div style={{ fontSize: "15px", fontWeight: 500 }}>{resident.full_name}</div>
-                {alert && (
-                  <span
-                    style={{
-                      fontSize: "11px",
-                      fontWeight: 600,
-                      padding: "2px 8px",
-                      borderRadius: "999px",
-                      backgroundColor: alert.risk_level === "high" ? "var(--color-coral-light)" : "var(--color-amber-light)",
-                      color: alert.risk_level === "high" ? "var(--color-coral-text)" : "var(--color-amber-text)",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.03em",
-                    }}
-                  >
-                    {alert.risk_level} risk{alert.trend === "worsening" ? " · worsening" : ""}
-                  </span>
-                )}
-              </div>
-              <div style={{ fontSize: "13px", color: "var(--color-text-muted)", marginTop: "4px" }}>
-                NHI {resident.nhi_number} · {resident.funding_category}
-                {resident.discharge_date && " · Discharged"}
-              </div>
-            </div>
+              <Card interactive onClick={() => navigate(`/residents/${resident.id}`)} style={{ borderLeft: `4px solid ${accentColor}` }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+                  <div style={{ fontSize: "var(--font-size-md)", fontWeight: "var(--font-weight-medium)" }}>
+                    {resident.full_name}
+                  </div>
+                  {alert && (
+                    <Badge variant={alert.risk_level === "high" ? "danger" : "warning"} size="sm">
+                      {alert.risk_level} risk{alert.trend === "worsening" ? " · worsening" : ""}
+                    </Badge>
+                  )}
+                </div>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: "var(--space-1)" }}>
+                  NHI {resident.nhi_number} · {resident.funding_category}
+                  {resident.discharge_date && " · Discharged"}
+                </div>
+              </Card>
+            </motion.div>
           );
         })}
       </div>
-      <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(8px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
     </div>
   );
 }

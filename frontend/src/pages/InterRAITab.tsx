@@ -1,6 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useOutletContext } from "react-router-dom";
+import { motion } from "framer-motion";
+import { ClipboardPlus } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { Card } from "../components/ui/Card";
+import { Button } from "../components/ui/Button";
+import { Alert } from "../components/ui/Alert";
+import { useToast } from "../components/ui/Toast";
 
 type InterRAIAssessment = {
   id: number;
@@ -19,6 +25,7 @@ type ResidentContext = { resident: { id: number } };
 export default function InterRAITab() {
   const { resident } = useOutletContext<ResidentContext>();
   const { token } = useAuth();
+  const showToast = useToast();
   const [assessments, setAssessments] = useState<InterRAIAssessment[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -49,7 +56,7 @@ export default function InterRAITab() {
     fetchAssessments();
   }, [resident.id, token]);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setSaving(true);
     setError("");
@@ -69,6 +76,7 @@ export default function InterRAITab() {
       setForm({ cognitive_performance: 0, adl_hierarchy: 0, mood: 0, falls_risk: 0, continence: 0, communication: 0 });
       setShowForm(false);
       setLoading(true);
+      showToast("InterRAI assessment saved", "success");
       fetchAssessments();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -86,106 +94,137 @@ export default function InterRAITab() {
     { key: "communication", label: "Communication", max: 4, hint: "0 = understood, 4 = rarely understood" },
   ];
 
-  if (loading) return <p style={{ fontSize: "14px", color: "var(--color-text-muted)" }}>Loading...</p>;
+  if (loading) {
+    return <p style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-muted)" }}>Loading...</p>;
+  }
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "16px" }}>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          style={{
-            padding: "8px 18px",
-            backgroundColor: showForm ? "transparent" : "var(--color-teal)",
-            color: showForm ? "var(--color-text-muted)" : "white",
-            border: showForm ? "1px solid var(--color-border)" : "none",
-            borderRadius: "8px", fontSize: "13px", fontWeight: 500, cursor: "pointer",
-          }}
-        >
-          {showForm ? "Cancel" : "+ New assessment"}
-        </button>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "var(--space-4)" }}>
+        <Button variant={showForm ? "secondary" : "primary"} size="sm" onClick={() => setShowForm(!showForm)}>
+          {!showForm && <ClipboardPlus size={15} />}
+          {showForm ? "Cancel" : "New assessment"}
+        </Button>
       </div>
 
       {showForm && (
-        <div style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "12px", padding: "20px", marginBottom: "20px" }}>
-          <h2 style={{ fontSize: "16px", fontWeight: 500, marginBottom: "16px" }}>New InterRAI assessment</h2>
-          <form onSubmit={handleSubmit}>
-            {domains.map((domain) => (
-              <div key={domain.key} style={{ marginBottom: "16px" }}>
-                <label style={{ fontSize: "13px", color: "var(--color-text-muted)", display: "block", marginBottom: "4px" }}>
-                  {domain.label} (0–{domain.max})
-                </label>
-                <p style={{ fontSize: "11px", color: "var(--color-text-muted)", marginBottom: "6px" }}>{domain.hint}</p>
-                <div style={{ display: "flex", gap: "8px" }}>
-                  {Array.from({ length: domain.max + 1 }, (_, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => setForm({ ...form, [domain.key]: i })}
-                      style={{
-                        width: "36px", height: "36px", borderRadius: "8px", fontSize: "14px", fontWeight: 500, cursor: "pointer",
-                        backgroundColor: form[domain.key as keyof typeof form] === i ? "var(--color-teal)" : "var(--color-bg)",
-                        color: form[domain.key as keyof typeof form] === i ? "white" : "var(--color-text)",
-                        border: `1px solid ${form[domain.key as keyof typeof form] === i ? "var(--color-teal)" : "var(--color-border)"}`,
-                      }}
-                    >
-                      {i}
-                    </button>
-                  ))}
+        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} style={{ marginBottom: "var(--space-5)" }}>
+          <Card>
+            <h2 style={{ fontSize: "var(--font-size-md)", fontWeight: "var(--font-weight-semibold)", marginBottom: "var(--space-4)" }}>
+              New InterRAI assessment
+            </h2>
+            <form onSubmit={handleSubmit}>
+              {domains.map((domain) => (
+                <div key={domain.key} style={{ marginBottom: "var(--space-4)" }}>
+                  <label
+                    style={{
+                      fontSize: "var(--font-size-sm)",
+                      fontWeight: "var(--font-weight-medium)",
+                      color: "var(--color-text)",
+                      display: "block",
+                      marginBottom: "2px",
+                    }}
+                  >
+                    {domain.label} (0–{domain.max})
+                  </label>
+                  <p style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: "var(--space-2)" }}>
+                    {domain.hint}
+                  </p>
+                  <div style={{ display: "flex", gap: "var(--space-2)" }}>
+                    {Array.from({ length: domain.max + 1 }, (_, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setForm({ ...form, [domain.key]: i })}
+                        style={{
+                          width: "36px",
+                          height: "36px",
+                          borderRadius: "var(--radius-md)",
+                          fontSize: "var(--font-size-base)",
+                          fontWeight: "var(--font-weight-medium)",
+                          cursor: "pointer",
+                          fontFamily: "inherit",
+                          backgroundColor: form[domain.key as keyof typeof form] === i ? "var(--color-teal)" : "var(--color-bg)",
+                          color: form[domain.key as keyof typeof form] === i ? "white" : "var(--color-text)",
+                          border: `1.5px solid ${form[domain.key as keyof typeof form] === i ? "var(--color-teal)" : "var(--color-border)"}`,
+                          transition: "background-color var(--duration-fast) var(--ease-standard)",
+                        }}
+                      >
+                        {i}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
 
-            {error && <p style={{ color: "var(--color-coral-text)", fontSize: "13px", marginBottom: "12px" }}>{error}</p>}
+              {error && (
+                <div style={{ marginBottom: "var(--space-3)" }}>
+                  <Alert variant="danger">{error}</Alert>
+                </div>
+              )}
 
-            <button
-              type="submit"
-              disabled={saving}
-              style={{ padding: "10px 20px", backgroundColor: "var(--color-teal)", color: "white", border: "none", borderRadius: "8px", fontSize: "14px", fontWeight: 500, cursor: "pointer", marginTop: "8px" }}
-            >
-              {saving ? "Saving..." : "Save assessment"}
-            </button>
-          </form>
-        </div>
+              <Button type="submit" loading={saving} style={{ marginTop: "var(--space-2)" }}>
+                {saving ? "Saving..." : "Save assessment"}
+              </Button>
+            </form>
+          </Card>
+        </motion.div>
       )}
 
       {assessments.length === 0 && !showForm ? (
-        <div style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "12px", padding: "40px", textAlign: "center" }}>
-          <p style={{ fontSize: "14px", color: "var(--color-text-muted)", marginBottom: "16px" }}>No InterRAI assessments recorded yet.</p>
-          <button
-            onClick={() => setShowForm(true)}
-            style={{ padding: "10px 20px", backgroundColor: "var(--color-teal)", color: "white", border: "none", borderRadius: "8px", fontSize: "14px", fontWeight: 500, cursor: "pointer" }}
-          >
-            + Record assessment
-          </button>
-        </div>
+        <Card padding="lg" style={{ textAlign: "center" }}>
+          <p style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-muted)", marginBottom: "var(--space-4)" }}>
+            No InterRAI assessments recorded yet.
+          </p>
+          <Button onClick={() => setShowForm(true)}>
+            <ClipboardPlus size={15} />
+            Record assessment
+          </Button>
+        </Card>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
           {assessments.map((a, index) => (
-            <div key={a.id} style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "12px", padding: "20px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-                <p style={{ fontSize: "14px", fontWeight: 500 }}>Assessment {assessments.length - index}</p>
-                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                  <div style={{
-                    width: "44px", height: "44px", borderRadius: "50%",
-                    backgroundColor: a.frailty_index > 0.5 ? "var(--color-coral-light)" : "var(--color-sage)",
-                    color: a.frailty_index > 0.5 ? "var(--color-coral-text)" : "var(--color-sage-text)",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: "12px", fontWeight: 500,
-                  }}>
-                    {Math.round(a.frailty_index * 100)}%
+            <motion.div
+              key={a.id}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.25, ease: "easeOut", delay: index * 0.04 }}
+            >
+              <Card>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--space-3)" }}>
+                  <p style={{ fontSize: "var(--font-size-base)", fontWeight: "var(--font-weight-medium)" }}>
+                    Assessment {assessments.length - index}
+                  </p>
+                  <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+                    <div
+                      style={{
+                        width: "44px",
+                        height: "44px",
+                        borderRadius: "50%",
+                        backgroundColor: a.frailty_index > 0.5 ? "var(--color-coral-light)" : "var(--color-teal-light)",
+                        color: a.frailty_index > 0.5 ? "var(--color-coral-text)" : "var(--color-sage-text)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: "var(--font-size-sm)",
+                        fontWeight: "var(--font-weight-medium)",
+                      }}
+                    >
+                      {Math.round(a.frailty_index * 100)}%
+                    </div>
+                    <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{a.assessment_date}</span>
                   </div>
-                  <span style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>{a.assessment_date}</span>
                 </div>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
-                {domains.map((d) => (
-                  <div key={d.key} style={{ fontSize: "13px" }}>
-                    <span style={{ color: "var(--color-text-muted)" }}>{d.label}: </span>
-                    <span style={{ fontWeight: 500 }}>{a[d.key as keyof InterRAIAssessment]}/{d.max}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "var(--space-2)" }}>
+                  {domains.map((d) => (
+                    <div key={d.key} style={{ fontSize: "var(--font-size-sm)" }}>
+                      <span style={{ color: "var(--color-text-muted)" }}>{d.label}: </span>
+                      <span style={{ fontWeight: "var(--font-weight-medium)" }}>{a[d.key as keyof InterRAIAssessment]}/{d.max}</span>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            </motion.div>
           ))}
         </div>
       )}

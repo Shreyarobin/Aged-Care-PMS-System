@@ -1,6 +1,9 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { useOutletContext } from "react-router-dom";
+import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useNavigate, useOutletContext } from "react-router-dom";
+import { Card } from "../components/ui/Card";
+import { Input } from "../components/ui/Input";
+import { Button } from "../components/ui/Button";
+import { Alert } from "../components/ui/Alert";
 import { useAuth } from "../context/AuthContext";
 
 type Resident = {
@@ -33,11 +36,11 @@ export default function EditResidentForm() {
     discharge_date: resident.discharge_date || "",
   });
 
-  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
+  function handleChange(e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
     setForm({ ...form, [e.target.name]: e.target.value });
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setSaving(true);
     setError("");
@@ -71,61 +74,88 @@ export default function EditResidentForm() {
     }
   }
 
-  const inputStyle = {
-    display: "block", width: "100%", padding: "10px 12px",
-    marginTop: "4px", marginBottom: "16px",
-    border: "1px solid var(--color-border)", borderRadius: "8px", fontSize: "14px",
+  const selectStyle: React.CSSProperties = {
+    display: "block",
+    width: "100%",
+    padding: "10px 12px",
+    marginTop: "4px",
+    border: "1.5px solid var(--color-border)",
+    borderRadius: "var(--radius-md)",
+    fontSize: "var(--font-size-base)",
+    fontFamily: "inherit",
+    backgroundColor: "var(--color-surface)",
+    color: "var(--color-text)",
   };
 
-  const labelStyle = { fontSize: "13px", color: "var(--color-text-muted)" };
+  const labelStyle: React.CSSProperties = {
+    fontSize: "var(--font-size-sm)",
+    fontWeight: "var(--font-weight-medium)",
+    color: "var(--color-text)",
+    display: "block",
+    marginBottom: "6px",
+  };
 
   return (
-    <div style={{ padding: "0" }}>
-      <h2 style={{ fontSize: "18px", fontWeight: 500, marginBottom: "20px" }}>Edit resident</h2>
+    <Card>
+      <h2 style={{ fontSize: "var(--font-size-lg)", fontWeight: "var(--font-weight-semibold)", marginBottom: "var(--space-5)" }}>
+        Edit resident
+      </h2>
       <form onSubmit={handleSubmit}>
-        <label style={labelStyle}>Full name *</label>
-        <input name="full_name" value={form.full_name} onChange={handleChange} required style={inputStyle} />
+        <div style={{ marginBottom: "var(--space-4)" }}>
+          <Input label="Full name *" name="full_name" value={form.full_name} onChange={handleChange} required />
+        </div>
 
-        <label style={labelStyle}>Funding category *</label>
-        <select name="funding_category" value={form.funding_category} onChange={handleChange} style={{ ...inputStyle, backgroundColor: "white" }}>
-          <option value="subsidised">Subsidised</option>
-          <option value="private">Private</option>
-          <option value="interim">Interim</option>
-        </select>
+        <div style={{ marginBottom: "var(--space-5)" }}>
+          <label style={labelStyle}>Funding category *</label>
+          <select name="funding_category" value={form.funding_category} onChange={handleChange} style={selectStyle}>
+            <option value="subsidised">Subsidised</option>
+            <option value="private">Private</option>
+            <option value="interim">Interim</option>
+          </select>
+        </div>
 
-        <p style={{ fontSize: "13px", fontWeight: 500, marginBottom: "12px", marginTop: "4px" }}>Next of kin</p>
+        <p style={{ fontSize: "var(--font-size-sm)", fontWeight: "var(--font-weight-semibold)", marginBottom: "var(--space-3)" }}>
+          Next of kin
+        </p>
 
-        <label style={labelStyle}>Name</label>
-        <input name="next_of_kin_name" value={form.next_of_kin_name} onChange={handleChange} style={inputStyle} />
+        <div style={{ marginBottom: "var(--space-4)" }}>
+          <Input label="Name" name="next_of_kin_name" value={form.next_of_kin_name} onChange={handleChange} />
+        </div>
 
-        <label style={labelStyle}>Phone</label>
-        <input name="next_of_kin_phone" value={form.next_of_kin_phone} onChange={handleChange} style={inputStyle} />
+        <div style={{ marginBottom: "var(--space-4)" }}>
+          <Input label="Phone" name="next_of_kin_phone" value={form.next_of_kin_phone} onChange={handleChange} />
+        </div>
 
-        <label style={labelStyle}>Relationship</label>
-        <input name="next_of_kin_relationship" value={form.next_of_kin_relationship} onChange={handleChange} style={inputStyle} />
+        <div style={{ marginBottom: "var(--space-5)" }}>
+          <Input label="Relationship" name="next_of_kin_relationship" value={form.next_of_kin_relationship} onChange={handleChange} />
+        </div>
 
-        <label style={labelStyle}>Discharge date (fill in to discharge this resident)</label>
-        <input name="discharge_date" type="date" value={form.discharge_date} onChange={handleChange} style={inputStyle} />
+        <div style={{ marginBottom: "var(--space-5)" }}>
+          <Input
+            label="Discharge date"
+            name="discharge_date"
+            type="date"
+            value={form.discharge_date}
+            onChange={handleChange}
+            helperText="Fill in to discharge this resident"
+          />
+        </div>
 
-        {error && <p style={{ color: "var(--color-coral-text)", fontSize: "13px", marginBottom: "16px" }}>{error}</p>}
+        {error && (
+          <div style={{ marginBottom: "var(--space-4)" }}>
+            <Alert variant="danger">{error}</Alert>
+          </div>
+        )}
 
-        <div style={{ display: "flex", gap: "12px" }}>
-          <button
-            type="submit"
-            disabled={saving}
-            style={{ padding: "10px 20px", backgroundColor: "var(--color-teal)", color: "white", border: "none", borderRadius: "8px", fontSize: "14px", fontWeight: 500, cursor: "pointer" }}
-          >
+        <div style={{ display: "flex", gap: "var(--space-3)" }}>
+          <Button type="submit" loading={saving}>
             {saving ? "Saving..." : "Save changes"}
-          </button>
-          <button
-            type="button"
-            onClick={() => navigate(`/residents/${resident.id}`)}
-            style={{ padding: "10px 20px", backgroundColor: "transparent", color: "var(--color-text-muted)", border: "1px solid var(--color-border)", borderRadius: "8px", fontSize: "14px", cursor: "pointer" }}
-          >
+          </Button>
+          <Button type="button" variant="secondary" onClick={() => navigate(`/residents/${resident.id}`)}>
             Cancel
-          </button>
+          </Button>
         </div>
       </form>
-    </div>
+    </Card>
   );
 }

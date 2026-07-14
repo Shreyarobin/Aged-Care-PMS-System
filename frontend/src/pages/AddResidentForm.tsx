@@ -1,10 +1,18 @@
-import { useState } from "react";
+import { useState, type ChangeEvent, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import { ArrowLeft } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../components/ui/Toast";
+import { Card } from "../components/ui/Card";
+import { Input } from "../components/ui/Input";
+import { Button } from "../components/ui/Button";
+import { Alert } from "../components/ui/Alert";
 
 export default function AddResidentForm() {
   const { token } = useAuth();
   const navigate = useNavigate();
+  const showToast = useToast();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -19,11 +27,11 @@ export default function AddResidentForm() {
     admission_date: new Date().toISOString().split("T")[0],
   });
 
-  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
+  function handleChange(e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
     setForm({ ...form, [e.target.name]: e.target.value });
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setSaving(true);
     setError("");
@@ -41,6 +49,7 @@ export default function AddResidentForm() {
       }
 
       const newResident = await response.json();
+      showToast(`${form.full_name} was added successfully`, "success");
       navigate(`/residents/${newResident.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -49,65 +58,104 @@ export default function AddResidentForm() {
     }
   }
 
-  const inputStyle = {
-    display: "block", width: "100%", padding: "10px 12px",
-    marginTop: "4px", marginBottom: "16px",
-    border: "1px solid var(--color-border)", borderRadius: "8px", fontSize: "14px",
+  const selectStyle: React.CSSProperties = {
+    display: "block",
+    width: "100%",
+    padding: "10px 12px",
+    marginTop: "4px",
+    border: "1.5px solid var(--color-border)",
+    borderRadius: "var(--radius-md)",
+    fontSize: "var(--font-size-base)",
+    fontFamily: "inherit",
+    backgroundColor: "var(--color-surface)",
+    color: "var(--color-text)",
   };
 
-  const labelStyle = { fontSize: "13px", color: "var(--color-text-muted)" };
+  const labelStyle: React.CSSProperties = {
+    fontSize: "var(--font-size-sm)",
+    fontWeight: "var(--font-weight-medium)",
+    color: "var(--color-text)",
+    display: "block",
+    marginBottom: "6px",
+  };
 
   return (
-    <div style={{ padding: "40px", maxWidth: "560px" }}>
-      <button
+    <div style={{ padding: "var(--space-10)", maxWidth: "560px" }}>
+      <div
         onClick={() => navigate("/")}
-        style={{ background: "none", border: "none", color: "var(--color-teal)", fontSize: "14px", marginBottom: "20px", padding: 0, cursor: "pointer" }}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "6px",
+          fontSize: "var(--font-size-sm)",
+          color: "var(--color-teal)",
+          cursor: "pointer",
+          marginBottom: "var(--space-5)",
+        }}
       >
-        ← Back to overview
-      </button>
-      <h1 style={{ fontSize: "22px", fontWeight: 500, marginBottom: "24px" }}>Add new resident</h1>
+        <ArrowLeft size={14} />
+        Back to overview
+      </div>
+      <h1 style={{ fontSize: "var(--font-size-xl)", fontWeight: "var(--font-weight-semibold)", marginBottom: "var(--space-6)" }}>
+        Add new resident
+      </h1>
 
-      <form onSubmit={handleSubmit}>
-        <label style={labelStyle}>Full name *</label>
-        <input name="full_name" value={form.full_name} onChange={handleChange} required style={inputStyle} />
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25, ease: "easeOut" }}>
+        <Card>
+          <form onSubmit={handleSubmit}>
+            <div style={{ marginBottom: "var(--space-4)" }}>
+              <Input label="Full name *" name="full_name" value={form.full_name} onChange={handleChange} required />
+            </div>
 
-        <label style={labelStyle}>Date of birth *</label>
-        <input name="date_of_birth" type="date" value={form.date_of_birth} onChange={handleChange} required style={inputStyle} />
+            <div style={{ marginBottom: "var(--space-4)" }}>
+              <Input label="Date of birth *" name="date_of_birth" type="date" value={form.date_of_birth} onChange={handleChange} required />
+            </div>
 
-        <label style={labelStyle}>NHI number *</label>
-        <input name="nhi_number" value={form.nhi_number} onChange={handleChange} required style={inputStyle} placeholder="e.g. ABC1234" />
+            <div style={{ marginBottom: "var(--space-4)" }}>
+              <Input label="NHI number *" name="nhi_number" value={form.nhi_number} onChange={handleChange} required placeholder="e.g. ABC1234" />
+            </div>
 
-        <label style={labelStyle}>Funding category *</label>
-        <select name="funding_category" value={form.funding_category} onChange={handleChange} style={{ ...inputStyle, backgroundColor: "white" }}>
-          <option value="subsidised">Subsidised</option>
-          <option value="private">Private</option>
-          <option value="interim">Interim</option>
-        </select>
+            <div style={{ marginBottom: "var(--space-4)" }}>
+              <label style={labelStyle}>Funding category *</label>
+              <select name="funding_category" value={form.funding_category} onChange={handleChange} style={selectStyle}>
+                <option value="subsidised">Subsidised</option>
+                <option value="private">Private</option>
+                <option value="interim">Interim</option>
+              </select>
+            </div>
 
-        <label style={labelStyle}>Admission date *</label>
-        <input name="admission_date" type="date" value={form.admission_date} onChange={handleChange} required style={inputStyle} />
+            <div style={{ marginBottom: "var(--space-5)" }}>
+              <Input label="Admission date *" name="admission_date" type="date" value={form.admission_date} onChange={handleChange} required />
+            </div>
 
-        <p style={{ fontSize: "13px", fontWeight: 500, marginBottom: "12px", marginTop: "8px" }}>Next of kin (optional)</p>
+            <p style={{ fontSize: "var(--font-size-sm)", fontWeight: "var(--font-weight-semibold)", marginBottom: "var(--space-3)" }}>
+              Next of kin (optional)
+            </p>
 
-        <label style={labelStyle}>Name</label>
-        <input name="next_of_kin_name" value={form.next_of_kin_name} onChange={handleChange} style={inputStyle} />
+            <div style={{ marginBottom: "var(--space-4)" }}>
+              <Input label="Name" name="next_of_kin_name" value={form.next_of_kin_name} onChange={handleChange} />
+            </div>
 
-        <label style={labelStyle}>Phone</label>
-        <input name="next_of_kin_phone" value={form.next_of_kin_phone} onChange={handleChange} style={inputStyle} />
+            <div style={{ marginBottom: "var(--space-4)" }}>
+              <Input label="Phone" name="next_of_kin_phone" value={form.next_of_kin_phone} onChange={handleChange} />
+            </div>
 
-        <label style={labelStyle}>Relationship</label>
-        <input name="next_of_kin_relationship" value={form.next_of_kin_relationship} onChange={handleChange} style={inputStyle} />
+            <div style={{ marginBottom: "var(--space-5)" }}>
+              <Input label="Relationship" name="next_of_kin_relationship" value={form.next_of_kin_relationship} onChange={handleChange} />
+            </div>
 
-        {error && <p style={{ color: "var(--color-coral-text)", fontSize: "13px", marginBottom: "16px" }}>{error}</p>}
+            {error && (
+              <div style={{ marginBottom: "var(--space-4)" }}>
+                <Alert variant="danger">{error}</Alert>
+              </div>
+            )}
 
-        <button
-          type="submit"
-          disabled={saving}
-          style={{ padding: "12px 24px", backgroundColor: "var(--color-teal)", color: "white", border: "none", borderRadius: "8px", fontSize: "14px", fontWeight: 500, cursor: "pointer" }}
-        >
-          {saving ? "Saving..." : "Add resident"}
-        </button>
-      </form>
+            <Button type="submit" loading={saving} size="lg">
+              {saving ? "Saving..." : "Add resident"}
+            </Button>
+          </form>
+        </Card>
+      </motion.div>
     </div>
   );
 }

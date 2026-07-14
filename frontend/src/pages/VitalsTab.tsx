@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
+import { Card } from "../components/ui/Card";
+import { Badge, type BadgeVariant } from "../components/ui/Badge";
+import { Table, TableHead, TableBody, TableRow, TableHeaderCell, TableCell } from "../components/ui/Table";
 
 type VitalsReading = {
   id: number;
@@ -31,10 +35,16 @@ type RiskScore = {
 
 type ResidentContext = { resident: { id: number } };
 
-const RISK_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  low: { bg: "var(--color-teal-light)", text: "var(--color-sage-text)", border: "var(--color-teal)" },
-  medium: { bg: "var(--color-amber-light)", text: "var(--color-amber-text)", border: "var(--color-amber)" },
-  high: { bg: "var(--color-coral-light)", text: "var(--color-coral-text)", border: "var(--color-coral)" },
+const RISK_BORDER_COLOR: Record<string, string> = {
+  low: "var(--color-teal)",
+  medium: "var(--color-amber)",
+  high: "var(--color-coral)",
+};
+
+const RISK_BADGE_VARIANT: Record<string, BadgeVariant> = {
+  low: "success",
+  medium: "warning",
+  high: "danger",
 };
 
 const FACTOR_LABELS: Record<string, string> = {
@@ -63,58 +73,45 @@ const FACTOR_LABELS: Record<string, string> = {
 };
 
 function RiskScoreCard({ risk }: { risk: RiskScore }) {
-  const colors = RISK_COLORS[risk.risk_level] ?? RISK_COLORS.low;
+  const borderColor = RISK_BORDER_COLOR[risk.risk_level] ?? RISK_BORDER_COLOR.low;
+  const badgeVariant = RISK_BADGE_VARIANT[risk.risk_level] ?? "success";
 
   return (
-    <div
-      style={{
-        backgroundColor: colors.bg,
-        border: `1px solid ${colors.border}`,
-        borderRadius: "12px",
-        padding: "20px",
-        marginBottom: "16px",
-      }}
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25, ease: "easeOut" }}
+      style={{ marginBottom: "var(--space-4)" }}
     >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-        <div>
-          <div style={{ fontSize: "12px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: colors.text }}>
-            {risk.risk_level} risk
-            {risk.trend && risk.trend !== "stable" ? ` · ${risk.trend}` : ""}
-          </div>
-          <div style={{ fontSize: "28px", fontWeight: 600, color: colors.text, marginTop: "4px" }}>
-            {risk.risk_probability !== null ? `${Math.round(risk.risk_probability * 100)}%` : "—"}
-          </div>
-          <div style={{ fontSize: "12px", color: "var(--color-text-muted)", marginTop: "4px" }}>
-            Deterioration risk score · based on last {risk.readings_used} readings
-            {risk.last_assessed && ` · updated ${new Date(risk.last_assessed).toLocaleTimeString()}`}
-          </div>
+      <Card style={{ borderColor }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", marginBottom: "var(--space-2)" }}>
+          <Badge variant={badgeVariant}>
+            {risk.risk_level} risk{risk.trend && risk.trend !== "stable" ? ` · ${risk.trend}` : ""}
+          </Badge>
         </div>
-      </div>
-
-      {risk.contributing_factors && risk.contributing_factors.length > 0 && (
-        <div style={{ marginTop: "14px", display: "flex", flexWrap: "wrap", gap: "8px" }}>
-          {risk.contributing_factors.map((f) => (
-            <span
-              key={f.factor}
-              style={{
-                fontSize: "12px",
-                padding: "4px 10px",
-                borderRadius: "999px",
-                backgroundColor: "var(--color-surface)",
-                border: `1px solid ${colors.border}`,
-                color: colors.text,
-              }}
-            >
-              {FACTOR_LABELS[f.factor] ?? f.factor}: {f.value}
-            </span>
-          ))}
+        <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: "var(--font-weight-semibold)" }}>
+          {risk.risk_probability !== null ? `${Math.round(risk.risk_probability * 100)}%` : "—"}
         </div>
-      )}
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: "var(--space-1)" }}>
+          Deterioration risk score · based on last {risk.readings_used} readings
+          {risk.last_assessed && ` · updated ${new Date(risk.last_assessed).toLocaleTimeString()}`}
+        </div>
 
-      <div style={{ fontSize: "11px", color: "var(--color-text-muted)", marginTop: "10px" }}>
-        AI-generated estimate from vitals trends — not a diagnosis. Always use clinical judgement.
-      </div>
-    </div>
+        {risk.contributing_factors && risk.contributing_factors.length > 0 && (
+          <div style={{ marginTop: "var(--space-4)", display: "flex", flexWrap: "wrap", gap: "var(--space-2)" }}>
+            {risk.contributing_factors.map((f) => (
+              <Badge key={f.factor} variant="neutral" size="sm">
+                {FACTOR_LABELS[f.factor] ?? f.factor}: {f.value}
+              </Badge>
+            ))}
+          </div>
+        )}
+
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: "var(--space-3)" }}>
+          AI-generated estimate from vitals trends — not a diagnosis. Always use clinical judgement.
+        </div>
+      </Card>
+    </motion.div>
   );
 }
 
@@ -157,14 +154,15 @@ export default function VitalsTab() {
   }, [resident.id, token]);
 
   if (readings.length === 0) {
-    return <p style={{ fontSize: "14px", color: "var(--color-text-muted)" }}>No vitals recorded yet.</p>;
+    return <p style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-muted)" }}>No vitals recorded yet.</p>;
   }
 
   return (
     <div>
       {riskScore && riskScore.risk_level !== "unknown" && <RiskScoreCard risk={riskScore} />}
-      <div style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "12px", padding: "20px" }}>
-        <div style={{ height: "200px", marginBottom: "16px" }}>
+
+      <Card padding="md" style={{ marginBottom: "var(--space-4)" }}>
+        <div style={{ height: "200px" }}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={[...readings].reverse()}>
               <XAxis
@@ -176,22 +174,43 @@ export default function VitalsTab() {
               <YAxis fontSize={11} stroke="var(--color-text-muted)" domain={["auto", "auto"]} />
               <Tooltip
                 labelFormatter={(value) => new Date(value).toLocaleTimeString()}
-                formatter={(value: number, name: string) => [value, name === "heart_rate" ? "Heart rate" : "SpO2"]}
+                formatter={(value, name) => [value, name === "heart_rate" ? "Heart rate" : "SpO2"]}
               />
               <Line type="monotone" dataKey="heart_rate" stroke="#0f6e56" strokeWidth={2} dot={false} />
               <Line type="monotone" dataKey="spo2" stroke="#d85a30" strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+      </Card>
+
+      <Table>
+        <TableHead>
+          <TableRow>
+            <TableHeaderCell>Time</TableHeaderCell>
+            <TableHeaderCell>HR</TableHeaderCell>
+            <TableHeaderCell>BP</TableHeaderCell>
+            <TableHeaderCell>SpO2</TableHeaderCell>
+            <TableHeaderCell>Resp</TableHeaderCell>
+            <TableHeaderCell>Temp</TableHeaderCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
           {readings.slice(0, 10).map((reading) => (
-            <div key={reading.id} style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", borderTop: "1px solid var(--color-border)", paddingTop: "8px" }}>
-              <span style={{ color: "var(--color-text-muted)" }}>{new Date(reading.recorded_at).toLocaleTimeString()}</span>
-              <span>HR {reading.heart_rate} · BP {reading.blood_pressure_systolic}/{reading.blood_pressure_diastolic} · SpO2 {reading.spo2}% · Resp {reading.respiratory_rate ?? "—"} · {reading.temperature}°C</span>
-            </div>
+            <TableRow key={reading.id}>
+              <TableCell style={{ color: "var(--color-text-muted)" }}>
+                {new Date(reading.recorded_at).toLocaleTimeString()}
+              </TableCell>
+              <TableCell>{reading.heart_rate}</TableCell>
+              <TableCell>
+                {reading.blood_pressure_systolic}/{reading.blood_pressure_diastolic}
+              </TableCell>
+              <TableCell>{reading.spo2}%</TableCell>
+              <TableCell>{reading.respiratory_rate ?? "—"}</TableCell>
+              <TableCell>{reading.temperature}°C</TableCell>
+            </TableRow>
           ))}
-        </div>
-      </div>
+        </TableBody>
+      </Table>
     </div>
   );
 }
